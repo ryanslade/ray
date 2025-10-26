@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	nx = 256
-	ny = 256
+	nx = 1600
+	ny = 900
 	ns = 100
 )
 
