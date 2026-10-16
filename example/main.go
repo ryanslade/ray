@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	nx = 1600
-	ny = 900
+	nx = 800
+	ny = 450
 	ns = 100
 )
 
@@ -76,7 +76,6 @@ func randomWorld() ray.Hitter {
 }
 
 func main() {
-
 	rand.Seed(1)
 	log.Println("Generating world")
 	world := randomWorld()

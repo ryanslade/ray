@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"runtime"
 	"sync"
+	"sync/atomic"
 )
 
 var rr = rand.New(rand.NewSource(1))
@@ -134,6 +135,9 @@ type Hitter interface {
 }
 
 type HitterList struct {
+	// Spheres are stored separately by value so that Hit can call them
+	// directly instead of via interface dispatch, which dominates render time.
+	spheres []Sphere
 	l       []Hitter
 	tempRec *HitRecord
 }
@@ -145,6 +149,10 @@ func NewHitterList() *HitterList {
 }
 
 func (hl *HitterList) Add(h Hitter) {
+	if s, ok := h.(Sphere); ok {
+		hl.spheres = append(hl.spheres, s)
+		return
+	}
 	hl.l = append(hl.l, h)
 }
 
@@ -152,6 +160,15 @@ func (hl *HitterList) Hit(r Ray, tMin, tMax float64, rec *HitRecord) bool {
 	var hitAnything bool
 	var hit bool
 	closest := tMax
+	for i := range hl.spheres {
+		hit = hl.spheres[i].Hit(r, tMin, closest, hl.tempRec)
+		if !hit {
+			continue
+		}
+		hitAnything = true
+		closest = hl.tempRec.T
+		*rec = *hl.tempRec
+	}
 	for i := 0; i < len(hl.l); i++ {
 		hit = hl.l[i].Hit(r, tMin, closest, hl.tempRec)
 		if !hit {
@@ -349,25 +366,23 @@ func Render(width, height, samples int, camera Camera, world Hitter) image.Image
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	numCPU := runtime.NumCPU()
 	wg := &sync.WaitGroup{}
-	rands := make([]*rand.Rand, numCPU)
-	for i := 0; i < numCPU; i++ {
-		rands[i] = rand.New(rand.NewSource(1 + int64(i)))
-	}
-	rowsPerGoroutine := height / numCPU
-	remainder := height % numCPU
-	startRow := 0
+	// Rows vary a lot in cost (sky is cheap, spheres are expensive), so
+	// goroutines take rows one at a time rather than a fixed block each.
+	var nextRow atomic.Int64
 	for g := 0; g < numCPU; g++ {
-		endRow := startRow + rowsPerGoroutine
-		if g < remainder {
-			endRow++
-		}
 		wg.Add(1)
-		go func(g int, start, end int) {
+		go func() {
 			defer wg.Done()
-			rnd := rands[g]
 			scatterRay := &Ray{}
 			rec := &HitRecord{}
-			for i := start; i < end; i++ {
+			for {
+				i := int(nextRow.Add(1) - 1)
+				if i >= height {
+					return
+				}
+				// Seed per row so output doesn't depend on which goroutine
+				// rendered it.
+				rnd := rand.New(rand.NewSource(1 + int64(i)))
 				for j := 0; j < width; j++ {
 					var c Color
 					for s := 0; s < samples; s++ {
@@ -386,8 +401,7 @@ func Render(width, height, samples int, camera Camera, world Hitter) image.Image
 					img.Set(j, i, clr)
 				}
 			}
-		}(g, startRow, endRow)
-		startRow = endRow
+		}()
 	}
 	wg.Wait()
 	return img
