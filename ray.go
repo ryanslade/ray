@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"runtime"
 	"sync"
+	"sync/atomic"
 )
 
 var rr = rand.New(rand.NewSource(1))
@@ -365,25 +366,23 @@ func Render(width, height, samples int, camera Camera, world Hitter) image.Image
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	numCPU := runtime.NumCPU()
 	wg := &sync.WaitGroup{}
-	rands := make([]*rand.Rand, numCPU)
-	for i := 0; i < numCPU; i++ {
-		rands[i] = rand.New(rand.NewSource(1 + int64(i)))
-	}
-	rowsPerGoroutine := height / numCPU
-	remainder := height % numCPU
-	startRow := 0
+	// Rows vary a lot in cost (sky is cheap, spheres are expensive), so
+	// goroutines take rows one at a time rather than a fixed block each.
+	var nextRow atomic.Int64
 	for g := 0; g < numCPU; g++ {
-		endRow := startRow + rowsPerGoroutine
-		if g < remainder {
-			endRow++
-		}
 		wg.Add(1)
-		go func(g int, start, end int) {
+		go func() {
 			defer wg.Done()
-			rnd := rands[g]
 			scatterRay := &Ray{}
 			rec := &HitRecord{}
-			for i := start; i < end; i++ {
+			for {
+				i := int(nextRow.Add(1) - 1)
+				if i >= height {
+					return
+				}
+				// Seed per row so output doesn't depend on which goroutine
+				// rendered it.
+				rnd := rand.New(rand.NewSource(1 + int64(i)))
 				for j := 0; j < width; j++ {
 					var c Color
 					for s := 0; s < samples; s++ {
@@ -402,8 +401,7 @@ func Render(width, height, samples int, camera Camera, world Hitter) image.Image
 					img.Set(j, i, clr)
 				}
 			}
-		}(g, startRow, endRow)
-		startRow = endRow
+		}()
 	}
 	wg.Wait()
 	return img
