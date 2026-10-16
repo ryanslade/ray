@@ -11,12 +11,10 @@ import (
 )
 
 func createTestWorld() Hitter {
-	world := &HitterList{
-		tempRec: new(HitRecord),
-	}
+	world := NewHitterList()
 
 	// Add ground
-	world.l = append(world.l, Sphere{
+	world.Add(Sphere{
 		Center: Vec3{X: 0, Y: -100.5, Z: -1},
 		Radius: 100,
 		ScatterFn: NewMaterialLambertian(Color{
@@ -26,7 +24,7 @@ func createTestWorld() Hitter {
 		}),
 	})
 
-	world.l = append(world.l, Sphere{
+	world.Add(Sphere{
 		Center: Vec3{X: 0, Y: 0, Z: -1},
 		Radius: 1,
 		ScatterFn: NewMaterialMetal(Color{
@@ -36,7 +34,7 @@ func createTestWorld() Hitter {
 		}, 0.2),
 	})
 
-	world.l = append(world.l, Sphere{
+	world.Add(Sphere{
 		Center:    Vec3{X: 1.5, Y: 0, Z: -1},
 		Radius:    1,
 		ScatterFn: NewMaterialDialectric(1.5),

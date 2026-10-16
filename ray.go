@@ -134,6 +134,9 @@ type Hitter interface {
 }
 
 type HitterList struct {
+	// Spheres are stored separately by value so that Hit can call them
+	// directly instead of via interface dispatch, which dominates render time.
+	spheres []Sphere
 	l       []Hitter
 	tempRec *HitRecord
 }
@@ -145,6 +148,10 @@ func NewHitterList() *HitterList {
 }
 
 func (hl *HitterList) Add(h Hitter) {
+	if s, ok := h.(Sphere); ok {
+		hl.spheres = append(hl.spheres, s)
+		return
+	}
 	hl.l = append(hl.l, h)
 }
 
@@ -152,6 +159,15 @@ func (hl *HitterList) Hit(r Ray, tMin, tMax float64, rec *HitRecord) bool {
 	var hitAnything bool
 	var hit bool
 	closest := tMax
+	for i := range hl.spheres {
+		hit = hl.spheres[i].Hit(r, tMin, closest, hl.tempRec)
+		if !hit {
+			continue
+		}
+		hitAnything = true
+		closest = hl.tempRec.T
+		*rec = *hl.tempRec
+	}
 	for i := 0; i < len(hl.l); i++ {
 		hit = hl.l[i].Hit(r, tMin, closest, hl.tempRec)
 		if !hit {
