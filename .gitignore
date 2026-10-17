@@ -5,5 +5,9 @@ ocaml/out.ppm
 ocaml/*.install
 rust/target/
 rust/out.ppm
+zig/.zig-cache/
+zig/zig-out/
+zig/out.ppm
+zig/tests/golden.actual.ppm
 janet/out.ppm
 janet/test/golden.actual.ppm
