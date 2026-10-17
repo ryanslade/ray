@@ -1,0 +1,3 @@
+(library
+ (name raytracer)
+ (public_name raytracer))
