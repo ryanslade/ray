@@ -1,0 +1,3 @@
+(executable
+ (name bench)
+ (libraries raytracer test_scene unix))

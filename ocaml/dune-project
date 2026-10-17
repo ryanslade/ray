@@ -1,0 +1,16 @@
+(lang dune 3.17)
+
+(name raytracer)
+
+(generate_opam_files true)
+
+(authors "Ryan Slade")
+
+(package
+ (name raytracer)
+ (synopsis "A simple ray tracer based on Ray Tracing in One Weekend")
+ (depends
+  (ocaml
+   (>= 5.5))
+  dune
+  (alcotest :with-test)))
