@@ -115,3 +115,18 @@ jobs:
           sudo make -C janet-1.41.2 install
       # The same as jpm test, without needing jpm.
       - run: for t in test/*.janet; do janet "$t"; done
+
+  metal:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: metal
+    steps:
+      - uses: actions/checkout@v7
+      - run: swift format lint --strict --recursive Package.swift Sources Tests
+      - run: brew install clang-format
+      - run: clang-format --dry-run --Werror Sources/Raytracer/Shaders.metal
+      - run: swift build
+      - run: swift test
+      # Checks the benchmark builds and runs (one iteration).
+      - run: swift run -c release bench 1
