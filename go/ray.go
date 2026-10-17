@@ -139,13 +139,10 @@ type HitterList struct {
 	// directly instead of via interface dispatch, which dominates render time.
 	spheres []Sphere
 	l       []Hitter
-	tempRec *HitRecord
 }
 
 func NewHitterList() *HitterList {
-	return &HitterList{
-		tempRec: new(HitRecord),
-	}
+	return &HitterList{}
 }
 
 func (hl *HitterList) Add(h Hitter) {
@@ -158,30 +155,28 @@ func (hl *HitterList) Add(h Hitter) {
 
 func (hl *HitterList) Hit(r Ray, tMin, tMax float64, rec *HitRecord) bool {
 	var hitAnything bool
-	var hit bool
 	closest := tMax
+	// Sphere.Hit only writes to rec when it finds a hit closer than closest,
+	// so it can write to rec directly.
 	for i := range hl.spheres {
-		hit = hl.spheres[i].Hit(r, tMin, closest, hl.tempRec)
-		if !hit {
+		if !hl.spheres[i].Hit(r, tMin, closest, rec) {
 			continue
 		}
 		hitAnything = true
-		closest = hl.tempRec.T
-		*rec = *hl.tempRec
+		closest = rec.T
 	}
 	for i := 0; i < len(hl.l); i++ {
-		hit = hl.l[i].Hit(r, tMin, closest, hl.tempRec)
-		if !hit {
+		// Other Hitters may write to the record on a miss. The scratch record
+		// is local because the world is shared between rendering goroutines.
+		var tempRec HitRecord
+		if !hl.l[i].Hit(r, tMin, closest, &tempRec) {
 			continue
 		}
 		hitAnything = true
-		closest = hl.tempRec.T
-		*rec = *hl.tempRec
+		closest = tempRec.T
+		*rec = tempRec
 	}
-	if !hitAnything {
-		return false
-	}
-	return true
+	return hitAnything
 }
 
 type Sphere struct {
@@ -279,7 +274,7 @@ func NewMaterialDialectric(refIndex float64) ScatterFunc {
 			scattered.Direction = reflected
 		} else {
 			scattered.Origin = rec.P
-			scattered.Direction = *refracted
+			scattered.Direction = refracted
 		}
 		return &colorWhite, true
 	}
@@ -289,17 +284,14 @@ func reflect(v, n Vec3) Vec3 {
 	return v.Sub(n.Mul(Dot(v, n) * 2))
 }
 
-var globalRefracted Vec3
-
-func refract(v, n Vec3, niOverNt float64) (*Vec3, bool) {
+func refract(v, n Vec3, niOverNt float64) (Vec3, bool) {
 	uv := v.Unit()
 	dt := Dot(uv, n)
 	discriminant := 1.0 - niOverNt*niOverNt*(1-dt*dt)
 	if discriminant > 0 {
-		globalRefracted = uv.Sub(n.Mul(dt)).Mul(niOverNt).Sub(n.Mul(math.Sqrt(discriminant)))
-		return &globalRefracted, true
+		return uv.Sub(n.Mul(dt)).Mul(niOverNt).Sub(n.Mul(math.Sqrt(discriminant))), true
 	}
-	return nil, false
+	return Vec3{}, false
 }
 
 func schlick(cosine, refIndex float64) float64 {

@@ -35,16 +35,16 @@ Measured on an Apple M1 Max (10 cores), Go 1.25.5, OCaml 5.5.1 (no flambda):
 | Benchmark                                  | Go     | OCaml   |
 | ------------------------------------------ | ------ | ------- |
 | Example scene, 800x450, 100 spp (wall)     | 21.3 s | 35.4 s  |
-| Example scene, 800x450, 100 spp (CPU)      | 205 s  | 305 s   |
-| Test scene, 100x100, 50 spp (per render)   | 26 ms  | 26 ms   |
+| Example scene, 800x450, 100 spp (CPU)      | 189 s  | 305 s   |
+| Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   |
 
 The test scene benchmark is `go test -bench .` in `go/` and
 `dune exec --release bench/bench.exe` in `ocaml/`.
 
-The OCaml version is on par for the small test scene but slower on the large
-one, where it allocates a short-lived vector for every ray/sphere test. In
-OCaml 5 every minor collection pauses all domains, so the allocation rate
-limits scaling; raising the minor heap (e.g. `OCAMLRUNPARAM=s=8M`) cuts the
+The OCaml version allocates short-lived vectors throughout (including one for
+every ray/sphere test), where Go keeps them on the stack. In OCaml 5 every
+minor collection pauses all domains, so the allocation rate limits scaling;
+raising the minor heap (e.g. `OCAMLRUNPARAM=s=8M`) cuts the
 OCaml example time by around a third.
 
 The OCaml render of the example scene:
