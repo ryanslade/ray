@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"os"
 
-	"github.com/ryanslade/ray"
+	ray "github.com/ryanslade/ray/go"
 )
 
 const (

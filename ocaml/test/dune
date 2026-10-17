@@ -1,0 +1,28 @@
+(library
+ (name test_scene)
+ (modules test_scene)
+ (libraries raytracer))
+
+(test
+ (name test_raytracer)
+ (modules test_raytracer)
+ (libraries raytracer test_scene alcotest))
+
+; Golden image check: renders the test scene and diffs the MD5 of its PPM against
+; golden.md5.
+; After an intentional change to the output, run `dune promote` to accept it.
+
+(executable
+ (name render_golden)
+ (modules render_golden)
+ (libraries raytracer test_scene))
+
+(rule
+ (with-stdout-to
+  golden.actual.md5
+  (run ./render_golden.exe)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden.md5 golden.actual.md5)))
