@@ -5,3 +5,5 @@ ocaml/out.ppm
 ocaml/*.install
 rust/target/
 rust/out.ppm
+janet/out.ppm
+janet/test/golden.actual.ppm
