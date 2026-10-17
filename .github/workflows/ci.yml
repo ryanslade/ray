@@ -20,6 +20,22 @@ jobs:
       - run: go build ./...
       - run: go test -race ./...
 
+  go-simd:
+    runs-on: ubuntu-24.04-arm
+    defaults:
+      run:
+        working-directory: go
+    env:
+      GOEXPERIMENT: simd
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go/go.mod
+          cache-dependency-path: go/go.mod
+      - run: go vet ./...
+      - run: go test -race ./...
+
   ocaml:
     runs-on: ubuntu-latest
     defaults:
