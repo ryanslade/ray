@@ -47,3 +47,19 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
+
+  zig:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zig
+    steps:
+      - uses: actions/checkout@v7
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - run: zig fmt --check .
+      - run: zig build
+      - run: zig build test
+      # Checks the benchmark builds and runs (one iteration on one thread).
+      - run: zig build bench -- 1 1
