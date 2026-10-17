@@ -1,0 +1,19 @@
+[package]
+name = "raytracer"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+authors = ["Ryan Slade"]
+description = "A simple ray tracer based on Ray Tracing in One Weekend"
+publish = false
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[[bench]]
+name = "render"
+harness = false
+
+[profile.release]
+codegen-units = 1
+lto = true

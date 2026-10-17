@@ -3,3 +3,5 @@ go/example/out.jpg
 ocaml/_build/
 ocaml/out.ppm
 ocaml/*.install
+rust/target/
+rust/out.ppm
