@@ -32,8 +32,8 @@ func randomWorld() ray.Hitter {
 	// Add some random spheres
 	for a := float64(-11); a < 11; a++ {
 		for b := float64(-11); b < 11; b++ {
-			center := ray.Vec3{a + 0.9*rand.Float64(), 0.2, b + 0.9*rand.Float64()}
-			if center.Sub(ray.Vec3{4, 0.2, 0}).Length() <= 0.9 {
+			center := ray.Vec3{X: a + 0.9*rand.Float64(), Y: 0.2, Z: b + 0.9*rand.Float64()}
+			if center.Sub(ray.Vec3{X: 4, Y: 0.2, Z: 0}).Length() <= 0.9 {
 				continue
 			}
 			world.Add(ray.Sphere{
