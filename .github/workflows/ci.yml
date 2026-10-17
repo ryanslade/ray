@@ -47,3 +47,19 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
+
+  janet:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: janet
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Janet
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -sSfL https://github.com/janet-lang/janet/archive/refs/tags/v1.41.2.tar.gz | tar xz
+          make -C janet-1.41.2 -j"$(nproc)"
+          sudo make -C janet-1.41.2 install
+      # The same as jpm test, without needing jpm.
+      - run: for t in test/*.janet; do janet "$t"; done
