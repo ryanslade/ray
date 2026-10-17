@@ -9,5 +9,8 @@ zig/.zig-cache/
 zig/zig-out/
 zig/out.ppm
 zig/tests/golden.actual.ppm
+c/build/
+c/out.ppm
+c/tests/golden.actual.ppm
 janet/out.ppm
 janet/test/golden.actual.ppm

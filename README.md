@@ -1,4 +1,4 @@
-A simple ray tracer, implemented in Go, OCaml, Rust, Zig and Janet.
+A simple ray tracer, implemented in Go, OCaml, Rust, Zig, C and Janet.
 
 This project was based on the book, [Ray Tracing in One Weekend](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8)
 
@@ -6,6 +6,7 @@ This project was based on the book, [Ray Tracing in One Weekend](https://www.ama
 - [`ocaml/`](ocaml) — a port to OCaml 5, rendering in parallel across domains
 - [`rust/`](rust) — a port to Rust, using only the standard library and no `unsafe`
 - [`zig/`](zig) — a port to Zig, producing byte-identical images to the Rust port
+- [`c/`](c) — a port to C11 with pthreads, also byte-identical to the Rust port
 - [`janet/`](janet) — a port to Janet, rendering rows on parallel OS threads
 
 An example of an image created using this library:
@@ -45,6 +46,15 @@ zig build run -Doptimize=ReleaseFast -- out.ppm
 zig build test
 ```
 
+C (requires a C11 compiler with pthreads, such as GCC or Clang; writes
+`out.ppm`, or another path with `OUT=`):
+
+```sh
+cd c
+make run
+make test
+```
+
 Janet (requires Janet >= 1.41; writes `out.ppm`):
 
 ```sh
@@ -55,21 +65,21 @@ jpm test
 
 ## Performance
 
-All five implementations render the same random scene (about 480 spheres) at
+All six implementations render the same random scene (about 480 spheres) at
 800x450 with 100 samples per pixel, splitting rows across all cores.
 Measured on an Apple M1 Max (10 cores), Go 1.25.5, OCaml 5.5.1 (no flambda),
-Rust 1.99.1, Zig 0.16.0, Janet 1.41.2:
+Rust 1.99.1, Zig 0.16.0, Apple clang 21.0.0, Janet 1.41.2:
 
-| Benchmark                                  | Go     | OCaml   | Rust   | Zig    | Janet  |
-| ------------------------------------------ | ------ | ------- | ------ | ------ | ------ |
-| Example scene, 800x450, 100 spp (wall)     | 21.3 s | 35.4 s  | 8.3 s  | 8.5 s  | 400 s  |
-| Example scene, 800x450, 100 spp (CPU)      | 189 s  | 305 s   | 75 s   | 82 s   | 3871 s |
-| Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   | 5 ms   | 5.4 ms | 455 ms |
+| Benchmark                                  | Go     | OCaml   | Rust   | Zig    | C      | Janet  |
+| ------------------------------------------ | ------ | ------- | ------ | ------ | ------ | ------ |
+| Example scene, 800x450, 100 spp (wall)     | 21.3 s | 35.4 s  | 8.3 s  | 8.5 s  | 7.1 s  | 400 s  |
+| Example scene, 800x450, 100 spp (CPU)      | 189 s  | 305 s   | 75 s   | 82 s   | 62 s   | 3871 s |
+| Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   | 5 ms   | 5.4 ms | 5.2 ms | 455 ms |
 
 The test scene benchmark is `go test -bench .` in `go/`,
 `dune exec --release bench/bench.exe` in `ocaml/`, `cargo bench` in `rust/`,
-`zig build bench -Doptimize=ReleaseFast` in `zig/` and `janet bench.janet` in
-`janet/`.
+`zig build bench -Doptimize=ReleaseFast` in `zig/`, `make bench` in `c/` and
+`janet bench.janet` in `janet/`.
 
 The OCaml version allocates short-lived vectors throughout (including one for
 every ray/sphere test), where Go keeps them on the stack. In OCaml 5 every
@@ -95,6 +105,19 @@ tagged union for materials, a loop for bounces, and the same order of floating
 point operations. Its renders are byte-identical to Rust's, so its golden image
 is a copy of Rust's and the Rust sample above is also the Zig render. Threads
 take rows from an atomic counter rather than a mutex-guarded iterator.
+
+The C port is built the same way again: SplitMix64, a tagged union for
+materials, a bounce loop and the same order of floating point operations, so
+its renders are byte-identical to Rust's as well (the example scene with Clang
+and GCC on macOS, and the test scene there and with GCC on arm64 and x86-64
+Linux). It compiles with `-ffp-contract=off`, so the compiler can't fuse
+multiplies and adds into single-rounding FMA instructions that Rust never
+emits; in practice fusing didn't change a single byte of either scene with
+Clang, but nothing guarantees that.
+Threads are pthreads taking rows from a C11 atomic counter. It builds with
+`-O3 -flto` by default: link-time optimisation inlines hit testing, scattering
+and camera rays across source files, which makes a single-threaded render of
+the test scene about 20% faster.
 
 Janet is a bytecode interpreter, so it is by far the slowest. Each thread is a
 separate Janet VM with its own heap, so there is no shared garbage collector to

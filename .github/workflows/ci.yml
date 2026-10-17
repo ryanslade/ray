@@ -64,6 +64,26 @@ jobs:
       # Checks the benchmark builds and runs (one iteration on one thread).
       - run: zig build bench -- 1 1
 
+  c:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: c
+    env:
+      CFLAGS: -O3 -flto -Werror
+    steps:
+      - uses: actions/checkout@v7
+      - run: make format-check
+      - run: make
+      - run: make test
+      - run: make test SANITIZE=address,undefined CFLAGS="-O1 -Werror"
+      # ThreadSanitizer can't map its shadow memory with the kernel's default
+      # amount of address space randomisation.
+      - run: sudo sysctl vm.mmap_rnd_bits=28
+      - run: make test SANITIZE=thread CFLAGS="-O1 -Werror"
+      # Checks the benchmark builds and runs (one iteration on one thread).
+      - run: make bench ARGS="1 1"
+
   janet:
     runs-on: ubuntu-latest
     defaults:
