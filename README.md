@@ -1,4 +1,4 @@
-A simple ray tracer, implemented in Go, OCaml, Rust and Zig.
+A simple ray tracer, implemented in Go, OCaml, Rust, Zig and Janet.
 
 This project was based on the book, [Ray Tracing in One Weekend](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8)
 
@@ -6,6 +6,7 @@ This project was based on the book, [Ray Tracing in One Weekend](https://www.ama
 - [`ocaml/`](ocaml) — a port to OCaml 5, rendering in parallel across domains
 - [`rust/`](rust) — a port to Rust, using only the standard library and no `unsafe`
 - [`zig/`](zig) — a port to Zig, producing byte-identical images to the Rust port
+- [`janet/`](janet) — a port to Janet, rendering rows on parallel OS threads
 
 An example of an image created using this library:
 
@@ -44,22 +45,31 @@ zig build run -Doptimize=ReleaseFast -- out.ppm
 zig build test
 ```
 
+Janet (requires Janet >= 1.41; writes `out.ppm`):
+
+```sh
+cd janet
+janet main.janet out.ppm
+jpm test
+```
+
 ## Performance
 
-All four implementations render the same random scene (about 480 spheres) at
+All five implementations render the same random scene (about 480 spheres) at
 800x450 with 100 samples per pixel, splitting rows across all cores.
 Measured on an Apple M1 Max (10 cores), Go 1.25.5, OCaml 5.5.1 (no flambda),
-Rust 1.99.1, Zig 0.16.0:
+Rust 1.99.1, Zig 0.16.0, Janet 1.41.2:
 
-| Benchmark                                  | Go     | OCaml   | Rust   | Zig    |
-| ------------------------------------------ | ------ | ------- | ------ | ------ |
-| Example scene, 800x450, 100 spp (wall)     | 21.3 s | 35.4 s  | 8.3 s  | 8.5 s  |
-| Example scene, 800x450, 100 spp (CPU)      | 189 s  | 305 s   | 75 s   | 82 s   |
-| Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   | 5 ms   | 5.4 ms |
+| Benchmark                                  | Go     | OCaml   | Rust   | Zig    | Janet  |
+| ------------------------------------------ | ------ | ------- | ------ | ------ | ------ |
+| Example scene, 800x450, 100 spp (wall)     | 21.3 s | 35.4 s  | 8.3 s  | 8.5 s  | 400 s  |
+| Example scene, 800x450, 100 spp (CPU)      | 189 s  | 305 s   | 75 s   | 82 s   | 3871 s |
+| Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   | 5 ms   | 5.4 ms | 455 ms |
 
 The test scene benchmark is `go test -bench .` in `go/`,
-`dune exec --release bench/bench.exe` in `ocaml/`, `cargo bench` in `rust/` and
-`zig build bench -Doptimize=ReleaseFast` in `zig/`.
+`dune exec --release bench/bench.exe` in `ocaml/`, `cargo bench` in `rust/`,
+`zig build bench -Doptimize=ReleaseFast` in `zig/` and `janet bench.janet` in
+`janet/`.
 
 The OCaml version allocates short-lived vectors throughout (including one for
 every ray/sphere test), where Go keeps them on the stack. In OCaml 5 every
@@ -85,3 +95,15 @@ tagged union for materials, a loop for bounces, and the same order of floating
 point operations. Its renders are byte-identical to Rust's, so its golden image
 is a copy of Rust's and the Rust sample above is also the Zig render. Threads
 take rows from an atomic counter rather than a mutex-guarded iterator.
+
+Janet is a bytecode interpreter, so it is by far the slowest. Each thread is a
+separate Janet VM with its own heap, so there is no shared garbage collector to
+limit scaling; the world and camera are copied to each thread, which takes rows
+from a channel and sends back finished rows. Vectors are tuples, but the
+closest-hit loop works on plain numbers from a flat array of sphere centres and
+radii, which makes the example scene about five times faster than calling a
+per-sphere intersection function.
+
+The Janet render of the example scene:
+
+![Janet sample](/janet/sample/sample.png "Janet sample")
