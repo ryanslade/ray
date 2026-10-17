@@ -21,7 +21,7 @@ Go (writes `out.jpg`):
 cd go/example && go run .
 ```
 
-On arm64 with Go 1.27, `GOEXPERIMENT=simd go run .` tests spheres two at a
+On arm64, `GOEXPERIMENT=simd go run .` tests spheres two at a
 time with NEON, which makes the example scene about 3.4x faster.
 
 OCaml (requires OCaml >= 5.5; writes `out.ppm`):
@@ -70,16 +70,16 @@ jpm test
 
 All six implementations render the same random scene (about 480 spheres) at
 800x450 with 100 samples per pixel, splitting rows across all cores.
-Measured on an Apple M1 Max (10 cores), Go 1.25.5, OCaml 5.5.1 (no flambda),
+Measured on an Apple M1 Max (10 cores), Go 1.27.2, OCaml 5.5.1 (no flambda),
 Rust 1.99.1, Zig 0.16.0, Apple clang 21.0.0, Janet 1.41.2:
 
 | Benchmark                                  | Go     | OCaml   | Rust   | Zig    | C      | Janet  |
 | ------------------------------------------ | ------ | ------- | ------ | ------ | ------ | ------ |
-| Example scene, 800x450, 100 spp (wall)     | 21.3 s | 35.4 s  | 8.3 s  | 8.5 s  | 7.1 s  | 400 s  |
-| Example scene, 800x450, 100 spp (CPU)      | 189 s  | 305 s   | 75 s   | 82 s   | 62 s   | 3871 s |
+| Example scene, 800x450, 100 spp (wall)     | 20.3 s | 35.4 s  | 8.3 s  | 8.5 s  | 7.1 s  | 400 s  |
+| Example scene, 800x450, 100 spp (CPU)      | 175 s  | 305 s   | 75 s   | 82 s   | 62 s   | 3871 s |
 | Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   | 5 ms   | 5.4 ms | 5.2 ms | 455 ms |
 
-With Go 1.27.2 and `GOEXPERIMENT=simd`, the Go example scene takes 5.9 s (wall)
+With `GOEXPERIMENT=simd`, the Go example scene takes 5.9 s (wall)
 and 50 s (CPU).
 
 The test scene benchmark is `go test -bench Render` in `go/`,
