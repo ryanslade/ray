@@ -138,7 +138,9 @@ type HitterList struct {
 	// Spheres are stored separately by value so that Hit can call them
 	// directly instead of via interface dispatch, which dominates render time.
 	spheres []Sphere
-	l       []Hitter
+	// lanes holds a copy of the spheres laid out for hitSpheres.
+	lanes sphereLanes
+	l     []Hitter
 }
 
 func NewHitterList() *HitterList {
@@ -148,23 +150,14 @@ func NewHitterList() *HitterList {
 func (hl *HitterList) Add(h Hitter) {
 	if s, ok := h.(Sphere); ok {
 		hl.spheres = append(hl.spheres, s)
+		hl.lanes.add(s)
 		return
 	}
 	hl.l = append(hl.l, h)
 }
 
 func (hl *HitterList) Hit(r Ray, tMin, tMax float64, rec *HitRecord) bool {
-	var hitAnything bool
-	closest := tMax
-	// Sphere.Hit only writes to rec when it finds a hit closer than closest,
-	// so it can write to rec directly.
-	for i := range hl.spheres {
-		if !hl.spheres[i].Hit(r, tMin, closest, rec) {
-			continue
-		}
-		hitAnything = true
-		closest = rec.T
-	}
+	closest, hitAnything := hl.hitSpheres(r, tMin, tMax, rec)
 	for i := 0; i < len(hl.l); i++ {
 		// Other Hitters may write to the record on a miss. The scratch record
 		// is local because the world is shared between rendering goroutines.
@@ -177,6 +170,23 @@ func (hl *HitterList) Hit(r Ray, tMin, tMax float64, rec *HitRecord) bool {
 		*rec = tempRec
 	}
 	return hitAnything
+}
+
+// hitSpheresScalar writes the closest sphere hit to rec, returning its
+// distance, or tMax if there is none.
+func (hl *HitterList) hitSpheresScalar(r Ray, tMin, tMax float64, rec *HitRecord) (float64, bool) {
+	var hitAnything bool
+	closest := tMax
+	// Sphere.Hit only writes to rec when it finds a hit closer than closest,
+	// so it can write to rec directly.
+	for i := range hl.spheres {
+		if !hl.spheres[i].Hit(r, tMin, closest, rec) {
+			continue
+		}
+		hitAnything = true
+		closest = rec.T
+	}
+	return closest, hitAnything
 }
 
 type Sphere struct {
@@ -196,23 +206,23 @@ func (s Sphere) Hit(r Ray, tMin, tMax float64, rec *HitRecord) bool {
 	}
 	temp := (-b - math.Sqrt(b*b-a*c)) / a
 	if temp < tMax && temp > tMin {
-		rec.T = temp
-		rec.P = r.PointAt(temp)
-		rec.ScatterFn = s.ScatterFn
-		rec.Normal = rec.P.Sub(s.Center).Div(s.Radius)
+		s.record(r, temp, rec)
 		return true
 	}
 	temp = (-b + math.Sqrt(b*b-a*c)) / a
-	// TODO: This code is a repeat of the above
-	// with a different temp value
 	if temp < tMax && temp > tMin {
-		rec.T = temp
-		rec.P = r.PointAt(temp)
-		rec.ScatterFn = s.ScatterFn
-		rec.Normal = rec.P.Sub(s.Center).Div(s.Radius)
+		s.record(r, temp, rec)
 		return true
 	}
 	return false
+}
+
+// record writes the hit at distance t along r to rec.
+func (s *Sphere) record(r Ray, t float64, rec *HitRecord) {
+	rec.T = t
+	rec.P = r.PointAt(t)
+	rec.ScatterFn = s.ScatterFn
+	rec.Normal = rec.P.Sub(s.Center).Div(s.Radius)
 }
 
 type ScatterFunc func(in Ray, rec *HitRecord, scattered *Ray, rand *rand.Rand) (attenuation *Color, ok bool)

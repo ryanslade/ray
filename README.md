@@ -21,6 +21,9 @@ Go (writes `out.jpg`):
 cd go/example && go run .
 ```
 
+On arm64 with Go 1.27, `GOEXPERIMENT=simd go run .` tests spheres two at a
+time with NEON, which makes the example scene about 3.4x faster.
+
 OCaml (requires OCaml >= 5.5; writes `out.ppm`):
 
 ```sh
@@ -76,7 +79,10 @@ Rust 1.99.1, Zig 0.16.0, Apple clang 21.0.0, Janet 1.41.2:
 | Example scene, 800x450, 100 spp (CPU)      | 189 s  | 305 s   | 75 s   | 82 s   | 62 s   | 3871 s |
 | Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   | 5 ms   | 5.4 ms | 5.2 ms | 455 ms |
 
-The test scene benchmark is `go test -bench .` in `go/`,
+With Go 1.27.2 and `GOEXPERIMENT=simd`, the Go example scene takes 5.9 s (wall)
+and 50 s (CPU).
+
+The test scene benchmark is `go test -bench Render` in `go/`,
 `dune exec --release bench/bench.exe` in `ocaml/`, `cargo bench` in `rust/`,
 `zig build bench -Doptimize=ReleaseFast` in `zig/`, `make bench` in `c/` and
 `janet bench.janet` in `janet/`.
