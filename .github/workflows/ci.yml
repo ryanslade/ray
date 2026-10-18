@@ -43,13 +43,24 @@ jobs:
         working-directory: ocaml
     steps:
       - uses: actions/checkout@v7
-      - uses: ocaml/setup-ocaml@v3
+      # setup-ocaml caches the compiler but not the packages, so every run
+      # spent over a minute updating opam and building dune and alcotest.
+      # This caches the whole switch instead, keyed on the dependencies, and
+      # uses it without opam when it's there.
+      - id: cache
+        uses: actions/cache@v6
+        with:
+          path: _opam
+          key: ocaml-5.5-${{ hashFiles('ocaml/*.opam') }}
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: "5.5"
-          dune-cache: true
-      - run: opam install . --deps-only --with-test
-      - run: opam exec -- dune build
-      - run: opam exec -- dune test
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: opam install . --deps-only --with-test
+      - run: echo "$GITHUB_WORKSPACE/_opam/bin" >> "$GITHUB_PATH"
+      - run: dune build
+      - run: dune test
 
   rust:
     runs-on: ubuntu-latest
