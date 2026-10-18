@@ -68,11 +68,11 @@ Measured on an Apple M1 Max (10 CPU cores, 32 GPU cores), Go 1.27.2, OCaml
 Clojure 1.12.6, Kotlin 2.4.21 and Scala 3.10.0 on OpenJDK 25.0.4, Swift 6.3.3 on
 macOS 26:
 
-| Benchmark                                | Metal  | Rust  | C      | Go    | Zig    | Kotlin | Scala | OCaml  | Clojure | Janet  |
-| ---------------------------------------- | ------ | ----- | ------ | ----- | ------ | ------ | ----- | ------ | ------- | ------ |
-| Example scene, 800x450, 100 spp (wall)   | 0.8 s  | 5.4 s | 7.1 s  | 7.9 s | 8.5 s  | 8.9 s  | 9.1 s | 13.4 s | 18.1 s  | 400 s  |
-| Example scene, 800x450, 100 spp (CPU)    | (GPU)  | 51 s  | 62 s   | 68 s  | 82 s   | 84 s   | 86 s  | 126 s  | 166 s   | 3871 s |
-| Test scene, 100x100, 50 spp (per render) | 3.3 ms | 5 ms  | 5.2 ms | 13 ms | 5.4 ms | 8.9 ms | 10 ms | 21 ms  | 9.1 ms  | 455 ms |
+| Benchmark                                | Metal  | Zig    | C      | Rust  | Go    | Kotlin | Scala | OCaml  | Clojure | Janet  |
+| ---------------------------------------- | ------ | ------ | ------ | ----- | ----- | ------ | ----- | ------ | ------- | ------ |
+| Example scene, 800x450, 100 spp (wall)   | 0.8 s  | 4.3 s  | 5.3 s  | 5.4 s | 7.9 s | 8.9 s  | 9.1 s | 13.4 s | 18.1 s  | 400 s  |
+| Example scene, 800x450, 100 spp (CPU)    | (GPU)  | 40 s   | 50 s   | 51 s  | 68 s  | 84 s   | 86 s  | 126 s  | 166 s   | 3871 s |
+| Test scene, 100x100, 50 spp (per render) | 3.3 ms | 4.9 ms | 5.2 ms | 5 ms  | 13 ms | 8.9 ms | 10 ms | 21 ms  | 9.1 ms  | 455 ms |
 
 With `GOEXPERIMENT=simd`, the Go example scene takes 5.9 s (wall)
 and 50 s (CPU).
@@ -117,7 +117,10 @@ The Zig port follows the Rust one closely: the same SplitMix64 generator, a
 tagged union for materials, a loop for bounces, and the same order of floating
 point operations. Its renders are byte-identical to Rust's, so its golden image
 is a copy of Rust's and the Rust sample above is also the Zig render. Threads
-take rows from an atomic counter rather than a mutex-guarded iterator.
+take rows from an atomic counter rather than a mutex-guarded iterator. The
+closest-hit loop uses the same blocks of four spheres, but as Zig's built-in
+`@Vector` types rather than arrays left for the compiler to vectorise; that
+made the example scene about 2.1x faster, and the fastest of the CPU versions.
 
 The C port is built the same way again: SplitMix64, a tagged union for
 materials, a bounce loop and the same order of floating point operations, so
@@ -130,7 +133,10 @@ Clang, but nothing guarantees that.
 Threads are pthreads taking rows from a C11 atomic counter. It builds with
 `-O3 -flto` by default: link-time optimisation inlines hit testing, scattering
 and camera rays across source files, which makes a single-threaded render of
-the test scene about 20% faster.
+the test scene about 20% faster. The closest-hit loop uses Rust's blocks of
+four spheres too, in arrays that Clang vectorises, which made the example scene
+about 1.3x faster. The caller provides the blocks' storage, as it does the
+spheres', so nothing is allocated.
 
 Janet is a bytecode interpreter, so it is by far the slowest. Each thread is a
 separate Janet VM with its own heap, so there is no shared garbage collector to
@@ -205,8 +211,8 @@ behaving differently. Samples are traced in passes of 10, each its own command
 buffer, so that no one command buffer runs long enough for the GPU watchdog to
 cancel it. Each pixel's random state and running total carry over between
 passes, so the image is the same however the samples are split up. The example
-scene renders in about 0.8 s, including compiling the shader, nearly nine times
-faster than the C version on all ten CPU cores. The test scene, at only 10,000
+scene renders in about 0.8 s, including compiling the shader, over five times
+faster than the fastest CPU version, Zig, on all ten CPU cores. The test scene, at only 10,000
 pixels, is too small to keep the GPU busy, so the gap there is much smaller.
 
 The Metal render of the example scene:

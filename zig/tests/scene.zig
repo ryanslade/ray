@@ -1,5 +1,7 @@
 //! The scene used by the tests and benchmark, matching the other versions.
 
+const std = @import("std");
+
 const rt = @import("raytracer");
 const Camera = rt.Camera;
 const Sphere = rt.Sphere;
@@ -12,7 +14,9 @@ const spheres = [_]Sphere{
     .init(.init(1.5, 0, -1), 1, .{ .dielectric = .{ .ref_index = 1.5 } }),
 };
 
-pub const world: World = .init(&spheres);
+pub fn world(gpa: std.mem.Allocator) !World {
+    return .init(gpa, &spheres);
+}
 
 pub fn camera(width: usize, height: usize) Camera {
     const look_from: Vec3 = .init(1, 1, 1);

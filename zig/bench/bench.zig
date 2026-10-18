@@ -9,8 +9,8 @@ const scene = @import("scene");
 const width = 100;
 const height = 100;
 
-fn run(gpa: std.mem.Allocator, threads: usize, camera: rt.Camera) !void {
-    const img = try rt.renderWithThreads(gpa, threads, width, height, 50, camera, scene.world);
+fn run(gpa: std.mem.Allocator, threads: usize, camera: rt.Camera, world: rt.World) !void {
+    const img = try rt.renderWithThreads(gpa, threads, width, height, 50, camera, world);
     defer img.deinit(gpa);
     std.mem.doNotOptimizeAway(img.pixels.ptr);
 }
@@ -21,9 +21,11 @@ pub fn main(init: std.process.Init) !void {
     const threads = if (args.len > 2) try std.fmt.parseInt(usize, args[2], 10) else rt.defaultThreads();
 
     const camera = scene.camera(width, height);
-    try run(init.gpa, threads, camera);
+    const world = try scene.world(init.gpa);
+    defer world.deinit(init.gpa);
+    try run(init.gpa, threads, camera, world);
     const start: std.Io.Clock.Timestamp = .now(init.io, .awake);
-    for (0..iterations) |_| try run(init.gpa, threads, camera);
+    for (0..iterations) |_| try run(init.gpa, threads, camera, world);
     const elapsed = start.untilNow(init.io);
     const ns: f64 = @floatFromInt(elapsed.raw.toNanoseconds());
     const n: f64 = @floatFromInt(iterations);

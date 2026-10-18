@@ -11,10 +11,12 @@ test "deterministic across threads" {
     const width = 40;
     const height = 30;
     const camera = scene.camera(width, height);
-    const expected = try rt.renderWithThreads(gpa, 1, width, height, 8, camera, scene.world);
+    const world = try scene.world(gpa);
+    defer world.deinit(gpa);
+    const expected = try rt.renderWithThreads(gpa, 1, width, height, 8, camera, world);
     defer expected.deinit(gpa);
     for ([_]usize{ 2, 4, 7 }) |threads| {
-        const img = try rt.renderWithThreads(gpa, threads, width, height, 8, camera, scene.world);
+        const img = try rt.renderWithThreads(gpa, threads, width, height, 8, camera, world);
         defer img.deinit(gpa);
         try std.testing.expectEqualSlices(u8, expected.pixels, img.pixels);
     }
@@ -28,7 +30,9 @@ test "deterministic across threads" {
 test "golden image" {
     const width = 200;
     const height = 200;
-    const img = try rt.render(gpa, width, height, 100, scene.camera(width, height), scene.world);
+    const world = try scene.world(gpa);
+    defer world.deinit(gpa);
+    const img = try rt.render(gpa, width, height, 100, scene.camera(width, height), world);
     defer img.deinit(gpa);
     var actual: std.Io.Writer.Allocating = .init(gpa);
     defer actual.deinit();

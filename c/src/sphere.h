@@ -20,9 +20,8 @@ static inline Sphere sphere(Vec3 center, double radius, Material material) {
 }
 
 /* Stores in `t` the nearest point in (`t_min`, `t_max`) at which the ray meets
- * the sphere, or returns false if there is none.
- *
- * Defined here so it can be inlined into the closest-hit loop. */
+ * the sphere, or returns false if there is none. world_hit does the same
+ * arithmetic for several spheres at once. */
 static inline bool sphere_intersect(const Sphere *s, Ray r, double t_min, double t_max, double *t) {
     Vec3 oc = vec3_sub(r.origin, s->center);
     double a = vec3_dot(r.direction, r.direction);

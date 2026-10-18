@@ -1,3 +1,4 @@
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -59,10 +60,56 @@ static void test_world_closest_hit(void) {
         sphere(vec3(0, 0, -5), 1, m),
         sphere(vec3(0, 0, -2), 0.5, m),
     };
-    World world = {.spheres = spheres, .len = 2};
+    SphereBlock blocks[WORLD_BLOCKS(2)];
+    World world = world_new(spheres, 2, blocks);
     Hit h;
     CHECK(world_hit(&world, ray_new(vec3(0, 0, 0), vec3(0, 0, -1)), 0, INFINITY, &h));
     CHECK(h.t == 1.5);
+}
+
+/* A random number in (-scale, scale). */
+static double random_coord(Rng *rng, double scale) { return scale * (2 * rng_next(rng) - 1); }
+
+/* The blocked loop finds exactly the hit that testing each sphere in turn
+ * would, for every number of spheres modulo the block size. */
+static void test_world_matches_sphere_by_sphere(void) {
+    enum { SPHERES = 23, RAYS = 2000 };
+    Rng rng = rng_new(1);
+    Material m = material_dielectric(1.5);
+    Sphere spheres[SPHERES];
+    for (size_t i = 0; i < SPHERES; i++) {
+        Vec3 center = vec3(random_coord(&rng, 3), random_coord(&rng, 3), random_coord(&rng, 3));
+        spheres[i] = sphere(center, 0.1 + fabs(random_coord(&rng, 1)), m);
+    }
+    static Ray rays[RAYS];
+    for (size_t i = 0; i < RAYS; i++) {
+        Vec3 origin = vec3(random_coord(&rng, 5), random_coord(&rng, 5), random_coord(&rng, 5));
+        rays[i] = ray_new(
+            origin, vec3(random_coord(&rng, 1), random_coord(&rng, 1), random_coord(&rng, 1)));
+    }
+    for (size_t n = 0; n < SPHERES; n++) {
+        SphereBlock blocks[WORLD_BLOCKS(SPHERES)];
+        World world = world_new(spheres, n, blocks);
+        for (size_t i = 0; i < RAYS; i++) {
+            const Sphere *want = NULL;
+            double want_t = DBL_MAX, t;
+            for (size_t j = 0; j < n; j++) {
+                if (sphere_intersect(&spheres[j], rays[i], 0.001, want_t, &t)) {
+                    want = &spheres[j];
+                    want_t = t;
+                }
+            }
+            Hit h;
+            bool got = world_hit(&world, rays[i], 0.001, DBL_MAX, &h);
+            CHECK(got == (want != NULL));
+            if (got && want != NULL) {
+                Hit expected = sphere_hit_at(want, rays[i], want_t);
+                CHECK(h.t == expected.t && h.material == expected.material &&
+                      memcmp(&h.point, &expected.point, sizeof h.point) == 0 &&
+                      memcmp(&h.normal, &expected.normal, sizeof h.normal) == 0);
+            }
+        }
+    }
 }
 
 static void test_total_internal_reflection(void) {
@@ -119,6 +166,7 @@ int main(void) {
     RUN_TEST(test_rng_same_seed_same_sequence);
     RUN_TEST(test_sphere_hit);
     RUN_TEST(test_world_closest_hit);
+    RUN_TEST(test_world_matches_sphere_by_sphere);
     RUN_TEST(test_total_internal_reflection);
     RUN_TEST(test_refracts_head_on);
     RUN_TEST(test_metal_fuzz_is_clamped);

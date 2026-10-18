@@ -6,6 +6,7 @@ const Material = rt.Material;
 const Rng = rt.Rng;
 const Sphere = rt.Sphere;
 const Vec3 = rt.Vec3;
+const World = rt.World;
 
 const width = 800;
 const height = 450;
@@ -46,7 +47,7 @@ pub fn main(init: std.process.Init) !void {
 
     std.debug.print("Generating world\n", .{});
     var rng: Rng = .init(1);
-    const spheres = try randomWorld(arena, &rng);
+    const world: World = try .init(arena, try randomWorld(arena, &rng));
     const look_from: Vec3 = .init(3, 2, 3);
     const look_at: Vec3 = .init(0, 0, -1);
     const camera: Camera = .init(.{
@@ -59,7 +60,7 @@ pub fn main(init: std.process.Init) !void {
         .focus_dist = look_from.sub(look_at).length(),
     });
     std.debug.print("Rendering on {d} threads\n", .{rt.defaultThreads()});
-    const img = try rt.render(init.gpa, width, height, samples, camera, .init(spheres));
+    const img = try rt.render(init.gpa, width, height, samples, camera, world);
     defer img.deinit(init.gpa);
     img.savePpm(init.io, output) catch |err| {
         std.debug.print("Writing {s}: {t}\n", .{ output, err });

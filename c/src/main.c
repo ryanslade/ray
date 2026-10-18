@@ -19,7 +19,8 @@ static double random_channel(Rng *rng) {
     return a * rng_next(rng);
 }
 
-static World random_world(Sphere spheres[MAX_SPHERES], Rng *rng) {
+static World random_world(Sphere spheres[MAX_SPHERES],
+                          SphereBlock blocks[WORLD_BLOCKS(MAX_SPHERES)], Rng *rng) {
     size_t n = 0;
     spheres[n++] = sphere(vec3(0, -1000, -1), 1000, material_lambertian(color(0.5, 0.5, 0.5)));
 
@@ -41,7 +42,7 @@ static World random_world(Sphere spheres[MAX_SPHERES], Rng *rng) {
     spheres[n++] = sphere(vec3(4, 1, 0), 1, material_metal(color(0.8, 0.6, 0.2), 0.1));
     spheres[n++] = sphere(vec3(0, 1, 0), 1, material_dielectric(1.5));
     spheres[n++] = sphere(vec3(-4, 1, 0), 1, material_metal(color(0.8, 0.8, 0.8), 0.2));
-    return (World){.spheres = spheres, .len = n};
+    return world_new(spheres, n, blocks);
 }
 
 int main(int argc, char **argv) {
@@ -49,8 +50,9 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "Generating world\n");
     static Sphere spheres[MAX_SPHERES];
+    static SphereBlock blocks[WORLD_BLOCKS(MAX_SPHERES)];
     Rng rng = rng_new(1);
-    World world = random_world(spheres, &rng);
+    World world = random_world(spheres, blocks, &rng);
     Vec3 look_from = vec3(3, 2, 3);
     Vec3 look_at = vec3(0, 0, -1);
     Camera camera = camera_new((CameraSettings){
