@@ -17,5 +17,9 @@ janet/test/golden.actual.ppm
 clojure/.cpcache/
 clojure/out.ppm
 clojure/test/golden.actual.ppm
+kotlin/.gradle/
+kotlin/.kotlin/
+kotlin/build/
+kotlin/out.ppm
 metal/.build/
 metal/out.ppm
