@@ -1,5 +1,5 @@
-A simple ray tracer, implemented in Go, OCaml, Rust, Zig, C and Janet, and on
-the GPU with Metal.
+A simple ray tracer, implemented in Go, OCaml, Rust, Zig, C, Janet and Clojure,
+and on the GPU with Metal.
 
 This project was based on the book, [Ray Tracing in One Weekend](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8)
 
@@ -9,6 +9,8 @@ This project was based on the book, [Ray Tracing in One Weekend](https://www.ama
 - [`zig/`](zig) — a port to Zig, producing byte-identical images to the Rust port
 - [`c/`](c) — a port to C11 with pthreads, also byte-identical to the Rust port
 - [`janet/`](janet) — a port to Janet, rendering rows on parallel OS threads
+- [`clojure/`](clojure) — a port to Clojure on the JVM, also byte-identical to the
+  Rust port
 - [`metal/`](metal) — a port to Metal compute shaders, driven from Swift, rendering
   every pixel on its own GPU thread
 
@@ -69,6 +71,14 @@ janet main.janet out.ppm
 jpm test
 ```
 
+Clojure (requires Java >= 25 and the Clojure CLI; writes `out.ppm`):
+
+```sh
+cd clojure
+clojure -M:run out.ppm
+clojure -M:test
+```
+
 Metal (requires macOS 15 and Swift 6; writes `out.ppm`):
 
 ```sh
@@ -89,18 +99,18 @@ swift test -Xswiftc -F$D/Frameworks -Xlinker -rpath -Xlinker $D/Frameworks \
 
 ## Performance
 
-All seven implementations render the same random scene (about 480 spheres) at
+All eight implementations render the same random scene (about 480 spheres) at
 800x450 with 100 samples per pixel. The CPU versions split rows across all
 cores; the Metal version runs on the GPU.
 Measured on an Apple M1 Max (10 CPU cores, 32 GPU cores), Go 1.27.2, OCaml
 5.5.1 (no flambda), Rust 1.99.1, Zig 0.16.0, Apple clang 21.0.0, Janet 1.41.2,
-Swift 6.3.3 on macOS 26:
+Clojure 1.12.6 on OpenJDK 25.0.4, Swift 6.3.3 on macOS 26:
 
-| Benchmark                                  | Go     | OCaml   | Rust   | Zig    | C      | Janet  | Metal  |
-| ------------------------------------------ | ------ | ------- | ------ | ------ | ------ | ------ | ------ |
-| Example scene, 800x450, 100 spp (wall)     | 20.3 s | 35.4 s  | 8.3 s  | 8.5 s  | 7.1 s  | 400 s  | 0.8 s  |
-| Example scene, 800x450, 100 spp (CPU)      | 175 s  | 305 s   | 75 s   | 82 s   | 62 s   | 3871 s | (GPU)  |
-| Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   | 5 ms   | 5.4 ms | 5.2 ms | 455 ms | 3.3 ms |
+| Benchmark                                  | Go     | OCaml   | Rust   | Zig    | C      | Janet  | Clojure | Metal  |
+| ------------------------------------------ | ------ | ------- | ------ | ------ | ------ | ------ | ------- | ------ |
+| Example scene, 800x450, 100 spp (wall)     | 20.3 s | 35.4 s  | 8.3 s  | 8.5 s  | 7.1 s  | 400 s  | 18.1 s  | 0.8 s  |
+| Example scene, 800x450, 100 spp (CPU)      | 175 s  | 305 s   | 75 s   | 82 s   | 62 s   | 3871 s | 166 s   | (GPU)  |
+| Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   | 5 ms   | 5.4 ms | 5.2 ms | 455 ms | 9.1 ms  | 3.3 ms |
 
 With `GOEXPERIMENT=simd`, the Go example scene takes 5.9 s (wall)
 and 50 s (CPU).
@@ -108,7 +118,8 @@ and 50 s (CPU).
 The test scene benchmark is `go test -bench Render` in `go/`,
 `dune exec --release bench/bench.exe` in `ocaml/`, `cargo bench` in `rust/`,
 `zig build bench -Doptimize=ReleaseFast` in `zig/`, `make bench` in `c/`,
-`janet bench.janet` in `janet/` and `swift run -c release bench` in `metal/`.
+`janet bench.janet` in `janet/`, `clojure -M:bench` in `clojure/` and
+`swift run -c release bench` in `metal/`.
 
 The OCaml version allocates short-lived vectors throughout (including one for
 every ray/sphere test), where Go keeps them on the stack. In OCaml 5 every
@@ -159,6 +170,22 @@ per-sphere intersection function.
 The Janet render of the example scene:
 
 ![Janet sample](/janet/sample/sample.png "Janet sample")
+
+The Clojure port runs on the JVM, and its renders are byte-identical to Rust's
+too. Since Java 17 all floating point arithmetic is strict IEEE 754, so the same
+order of operations gives the same results; the camera's one tangent uses
+`StrictMath`, whose results don't depend on the JVM's intrinsics. Vectors are a
+`deftype` with primitive double fields rather than Clojure vectors, and the
+SplitMix64 generator is a `deftype` with a mutable long, behind an interface
+with primitive signatures. Every namespace warns on reflection and boxed maths,
+so the hot path has neither. Materials are records implementing a protocol, and
+a missed intersection returns NaN rather than nil, so the closest-hit loop
+works on unboxed doubles. Threads are futures taking rows from an atomic
+counter. Every alias in `deps.edn` turns on direct linking, which compiles calls
+between functions to static method calls that the JIT can inline; that makes
+the test scene about 1.8x faster. The example scene's time includes about a
+second of starting the JVM and compiling the Clojure source, and the benchmark
+warms up the JIT for three seconds before timing.
 
 The Metal version traces every pixel on its own GPU thread. The Swift host
 builds the scene and camera in double precision exactly as the other versions
