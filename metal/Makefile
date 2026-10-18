@@ -10,6 +10,12 @@ TEST_FLAGS := -Xswiftc -F$(CLT)/Frameworks -Xlinker -rpath -Xlinker $(CLT)/Frame
 	-Xlinker -rpath -Xlinker $(CLT)/usr/lib
 endif
 
+help:
+	@echo "make build    builds it"
+	@echo "make test     runs the tests"
+	@echo "make example  renders the example scene to $(OUT), or another path with OUT="
+	@echo "make clean    removes the build output"
+
 build:
 	swift build -c release
 
@@ -20,4 +26,7 @@ test:
 example:
 	swift run -c release raytracer $(OUT)
 
-.PHONY: build test example
+clean:
+	rm -rf .build
+
+.PHONY: help build test example clean

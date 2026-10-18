@@ -2,6 +2,12 @@
 
 OUT ?= out.ppm
 
+help:
+	@echo "make build    builds it"
+	@echo "make test     runs the tests"
+	@echo "make example  renders the example scene to $(OUT), or another path with OUT="
+	@echo "make clean    removes the build output"
+
 build:
 	zig build -Doptimize=ReleaseFast
 
@@ -12,4 +18,7 @@ test:
 example:
 	zig build run -Doptimize=ReleaseFast -- $(OUT)
 
-.PHONY: build test example
+clean:
+	rm -rf .zig-cache zig-out tests/golden.actual.ppm
+
+.PHONY: help build test example clean

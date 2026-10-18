@@ -2,6 +2,12 @@
 
 OUT ?= out.ppm
 
+help:
+	@echo "make build    builds it"
+	@echo "make test     runs the tests"
+	@echo "make example  renders the example scene to $(OUT), or another path with OUT="
+	@echo "make clean    removes the build output"
+
 build:
 	dune build --release
 
@@ -12,4 +18,7 @@ test:
 example:
 	dune exec --release raytracer -- $(OUT)
 
-.PHONY: build test example
+clean:
+	dune clean
+
+.PHONY: help build test example clean

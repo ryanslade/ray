@@ -28,7 +28,10 @@ cd rust      # or go, ocaml, zig, c, janet, clojure, kotlin, metal
 make build   # builds it
 make test    # runs the tests
 make example # renders the example scene to out.ppm, or another path with OUT=
+make clean   # removes the build output
 ```
+
+Running `make` by itself lists the targets.
 
 The Go example writes `example/out.jpg` instead. On arm64,
 `make example GOEXPERIMENT=simd` tests spheres two at a time with NEON, which

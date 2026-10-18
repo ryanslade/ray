@@ -2,6 +2,12 @@
 
 OUT ?= out.ppm
 
+help:
+	@echo "make build    builds it"
+	@echo "make test     runs the tests"
+	@echo "make example  renders the example scene to $(OUT), or another path with OUT="
+	@echo "make clean    removes the build output"
+
 build:
 	cargo build --release
 
@@ -12,4 +18,7 @@ test:
 example:
 	cargo run --release -- $(OUT)
 
-.PHONY: build test example
+clean:
+	cargo clean
+
+.PHONY: help build test example clean

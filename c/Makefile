@@ -25,6 +25,15 @@ SCENE_OBJ := $(BUILD)/obj/tests/scene.o
 PROGRAMS := $(addprefix $(BUILD)/,raytracer test_unit test_render bench)
 SOURCES := $(wildcard src/*.[ch] tests/*.[ch] bench/*.[ch])
 
+help:
+	@echo "make build         builds it"
+	@echo "make test          runs the tests, with sanitizers given SANITIZE=address,undefined"
+	@echo "make example       renders the example scene to $(OUT), or another path with OUT="
+	@echo "make bench         runs the benchmark, with ARGS=\"iterations threads\""
+	@echo "make format        formats the sources with clang-format"
+	@echo "make format-check  checks the sources are formatted"
+	@echo "make clean         removes the build output"
+
 all: build
 
 build: $(BUILD)/raytracer
@@ -63,6 +72,6 @@ format-check:
 clean:
 	rm -rf build tests/golden.actual.ppm
 
-.PHONY: all build example test bench format format-check clean
+.PHONY: help all build example test bench format format-check clean
 
 -include $(patsubst %.o,%.d,$(LIB_OBJS) $(SCENE_OBJ) $(addprefix $(BUILD)/obj/,src/main.o tests/test_unit.o tests/test_render.o bench/bench.o))

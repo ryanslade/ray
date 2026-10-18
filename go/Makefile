@@ -1,3 +1,9 @@
+help:
+	@echo "make build    builds it"
+	@echo "make test     runs the tests"
+	@echo "make example  renders the example scene to example/out.jpg"
+	@echo "make clean    removes the build output"
+
 build:
 	go build ./...
 
@@ -9,4 +15,7 @@ test:
 example:
 	cd example && go run .
 
-.PHONY: build test example
+clean:
+	go clean ./...
+
+.PHONY: help build test example clean
