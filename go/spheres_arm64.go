@@ -15,6 +15,10 @@ type sphereLanes struct {
 	cx, cy, cz, rr []float64
 }
 
+// mulAdd is x*y + z rounded once, as the MulAdds in hitSpheres are, so that
+// hitSpheresScalar gives bit-identical results.
+func mulAdd(x, y, z float64) float64 { return math.FMA(x, y, z) }
+
 func (sl *sphereLanes) add(s Sphere) {
 	if sl.n == len(sl.cx) {
 		nan := math.NaN()

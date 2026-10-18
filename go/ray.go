@@ -179,15 +179,21 @@ func (hl *HitterList) hitSpheresScalar(r Ray, tMin, tMax float64, rec *HitRecord
 	// inline, and the call costs more than the arithmetic. Only the hit record
 	// for the closest sphere is ever needed, so just track which one it is
 	// until the end.
+	//
+	// The multiply-adds are written out in the same order as in the SIMD
+	// hitSpheres, which makes mulAdd a fused multiply-add, so that the two
+	// give bit-identical results. Left to itself, the compiler may fuse
+	// either product of x*y + z*w into the add, and picks differently in
+	// different builds (such as with -race).
 	d := r.Direction
-	a := Dot(d, d)
+	a := mulAdd(d.Z, d.Z, mulAdd(d.X, d.X, d.Y*d.Y))
 	closest, best := tMax, -1
 	for i := range hl.spheres {
 		s := &hl.spheres[i]
-		oc := r.Origin.Sub(s.Center)
-		b := Dot(oc, d)
-		c := Dot(oc, oc) - s.Radius*s.Radius
-		discriminant := b*b - a*c
+		ox, oy, oz := r.Origin.X-s.Center.X, r.Origin.Y-s.Center.Y, r.Origin.Z-s.Center.Z
+		b := mulAdd(oz, d.Z, mulAdd(ox, d.X, oy*d.Y))
+		c := mulAdd(-s.Radius, s.Radius, mulAdd(oz, oz, mulAdd(oy, oy, ox*ox)))
+		discriminant := mulAdd(-a, c, b*b)
 		if discriminant < 0 {
 			continue
 		}
