@@ -21,91 +21,37 @@ An example of an image created using this library:
 
 ## Running
 
-Go (writes `out.jpg`):
+Each port has a Makefile with the same targets:
 
 ```sh
-cd go/example && go run .
+cd rust      # or go, ocaml, zig, c, janet, clojure, kotlin, metal
+make build   # builds it
+make test    # runs the tests
+make example # renders the example scene to out.ppm, or another path with OUT=
 ```
 
-On arm64, `GOEXPERIMENT=simd go run .` tests spheres two at a
-time with NEON, which makes the example scene about 3.4x faster.
+The Go example writes `example/out.jpg` instead. On arm64,
+`make example GOEXPERIMENT=simd` tests spheres two at a time with NEON, which
+makes the example scene about 3.4x faster.
 
-OCaml (requires OCaml >= 5.5; writes `out.ppm`):
+Each port needs:
 
-```sh
-cd ocaml
-opam install . --deps-only --with-test
-dune exec --release raytracer -- out.ppm
-dune test
-```
+- Go: the version in `go/go.mod`
+- OCaml: OCaml >= 5.5 and the dependencies from
+  `opam install . --deps-only --with-test`
+- Rust: the toolchain pinned in `rust/rust-toolchain.toml`
+- Zig: Zig 0.16
+- C: a C11 compiler with pthreads, such as GCC or Clang
+- Janet: Janet >= 1.41
+- Clojure: Java >= 25 and the Clojure CLI
+- Kotlin: Java >= 17 to run Gradle, which downloads Java 25 if it isn't
+  installed
+- Metal: macOS 15 and Swift 6
 
-Rust (uses the toolchain pinned in `rust-toolchain.toml`; writes `out.ppm`):
-
-```sh
-cd rust
-cargo run --release -- out.ppm
-cargo test
-```
-
-Zig (requires Zig 0.16; writes `out.ppm`):
-
-```sh
-cd zig
-zig build run -Doptimize=ReleaseFast -- out.ppm
-zig build test
-```
-
-C (requires a C11 compiler with pthreads, such as GCC or Clang; writes
-`out.ppm`, or another path with `OUT=`):
-
-```sh
-cd c
-make run
-make test
-```
-
-Janet (requires Janet >= 1.41; writes `out.ppm`):
-
-```sh
-cd janet
-janet main.janet out.ppm
-jpm test
-```
-
-Clojure (requires Java >= 25 and the Clojure CLI; writes `out.ppm`):
-
-```sh
-cd clojure
-clojure -M:run out.ppm
-clojure -M:test
-```
-
-Kotlin (requires Java >= 17 to run Gradle, which downloads Java 25 if it isn't
-installed; writes `out.ppm`):
-
-```sh
-cd kotlin
-./gradlew run --args=out.ppm
-./gradlew test
-```
-
-Metal (requires macOS 15 and Swift 6; writes `out.ppm`):
-
-```sh
-cd metal
-swift run -c release raytracer out.ppm
-swift test
-```
-
-The shader is compiled when the program starts, so Xcode isn't needed, only
-the Command Line Tools. They include Swift Testing, but `swift test` doesn't
-find it without Xcode; with only the Command Line Tools, run the tests with:
-
-```sh
-D=/Library/Developer/CommandLineTools/Library/Developer
-swift test -Xswiftc -F$D/Frameworks -Xlinker -rpath -Xlinker $D/Frameworks \
-  -Xlinker -rpath -Xlinker $D/usr/lib
-```
+The Metal shader is compiled when the program starts, so Xcode isn't needed,
+only the Command Line Tools. They include Swift Testing, but `swift test`
+doesn't find it without Xcode, so `make test` passes it the paths it needs
+when the Command Line Tools are selected.
 
 ## Performance
 

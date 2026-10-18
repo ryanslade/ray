@@ -25,7 +25,9 @@ SCENE_OBJ := $(BUILD)/obj/tests/scene.o
 PROGRAMS := $(addprefix $(BUILD)/,raytracer test_unit test_render bench)
 SOURCES := $(wildcard src/*.[ch] tests/*.[ch] bench/*.[ch])
 
-all: $(BUILD)/raytracer
+all: build
+
+build: $(BUILD)/raytracer
 
 $(BUILD)/raytracer: $(BUILD)/obj/src/main.o $(LIB_OBJS)
 $(BUILD)/test_unit: $(BUILD)/obj/tests/test_unit.o $(LIB_OBJS)
@@ -40,7 +42,7 @@ $(BUILD)/obj/%.o: %.c
 	$(CC) $(CPPFLAGS) $(RT_CFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
 
 # Renders the example scene to $(OUT).
-run: $(BUILD)/raytracer
+example: $(BUILD)/raytracer
 	$(BUILD)/raytracer $(OUT)
 
 test: $(BUILD)/test_unit $(BUILD)/test_render
@@ -61,6 +63,6 @@ format-check:
 clean:
 	rm -rf build tests/golden.actual.ppm
 
-.PHONY: all run test bench format format-check clean
+.PHONY: all build example test bench format format-check clean
 
 -include $(patsubst %.o,%.d,$(LIB_OBJS) $(SCENE_OBJ) $(addprefix $(BUILD)/obj/,src/main.o tests/test_unit.o tests/test_render.o bench/bench.o))
