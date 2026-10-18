@@ -68,11 +68,11 @@ Measured on an Apple M1 Max (10 CPU cores, 32 GPU cores), Go 1.27.2, OCaml
 Clojure 1.12.6, Kotlin 2.4.21 and Scala 3.10.0 on OpenJDK 25.0.4, Swift 6.3.3 on
 macOS 26:
 
-| Benchmark                                  | Go     | OCaml   | Rust   | Zig    | C      | Janet  | Clojure | Kotlin | Scala  | Metal  |
-| ------------------------------------------ | ------ | ------- | ------ | ------ | ------ | ------ | ------- | ------ | ------ | ------ |
-| Example scene, 800x450, 100 spp (wall)     | 7.9 s  | 35.4 s  | 8.3 s  | 8.5 s  | 7.1 s  | 400 s  | 18.1 s  | 8.9 s  | 9.1 s  | 0.8 s  |
-| Example scene, 800x450, 100 spp (CPU)      | 68 s   | 305 s   | 75 s   | 82 s   | 62 s   | 3871 s | 166 s   | 84 s   | 86 s   | (GPU)  |
-| Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   | 5 ms   | 5.4 ms | 5.2 ms | 455 ms | 9.1 ms  | 8.9 ms | 10 ms  | 3.3 ms |
+| Benchmark                                | Metal  | C      | Go    | Rust  | Zig    | Kotlin | Scala | OCaml  | Clojure | Janet  |
+| ---------------------------------------- | ------ | ------ | ----- | ----- | ------ | ------ | ----- | ------ | ------- | ------ |
+| Example scene, 800x450, 100 spp (wall)   | 0.8 s  | 7.1 s  | 7.9 s | 8.3 s | 8.5 s  | 8.9 s  | 9.1 s | 13.4 s | 18.1 s  | 400 s  |
+| Example scene, 800x450, 100 spp (CPU)    | (GPU)  | 62 s   | 68 s  | 75 s  | 82 s   | 84 s   | 86 s  | 126 s  | 166 s   | 3871 s |
+| Test scene, 100x100, 50 spp (per render) | 3.3 ms | 5.2 ms | 13 ms | 5 ms  | 5.4 ms | 8.9 ms | 10 ms | 21 ms  | 9.1 ms  | 455 ms |
 
 With `GOEXPERIMENT=simd`, the Go example scene takes 5.9 s (wall)
 and 50 s (CPU).
@@ -84,11 +84,14 @@ The test scene benchmark is `go test -bench Render` in `go/`,
 `./gradlew bench` in `kotlin/`, `./mill bench` in `scala/` and
 `swift run -c release bench` in `metal/`.
 
-The OCaml version allocates short-lived vectors throughout (including one for
-every ray/sphere test), where Go keeps them on the stack. In OCaml 5 every
-minor collection pauses all domains, so the allocation rate limits scaling;
-raising the minor heap (e.g. `OCAMLRUNPARAM=s=8M`) cuts the
-OCaml example time by around a third.
+The OCaml version allocates short-lived vectors throughout, where Go keeps
+them on the stack. In OCaml 5 every minor collection pauses all domains, so the
+allocation rate limits scaling. The closest-hit loop, which runs for every
+ray/sphere pair, therefore works on plain floats rather than vectors, returns
+NaN on a miss rather than an option, and builds a hit record only for the
+closest sphere, so it allocates nothing; that made the example scene about 2.5x
+faster. With that allocation gone, raising the minor heap (e.g.
+`OCAMLRUNPARAM=s=8M`) no longer makes a noticeable difference.
 
 The OCaml render of the example scene:
 
