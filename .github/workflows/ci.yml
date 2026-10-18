@@ -90,7 +90,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: make format-check
-      - run: make
+      - run: make build
       - run: make test
       - run: make test SANITIZE=address,undefined CFLAGS="-O1 -Werror"
       # ThreadSanitizer can't map its shadow memory with the kernel's default

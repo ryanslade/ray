@@ -62,7 +62,9 @@ static void test_world_closest_hit(void) {
     };
     SphereBlock blocks[WORLD_BLOCKS(2)];
     World world = world_new(spheres, 2, blocks);
-    Hit h;
+    /* Initialised, as the CHECK below doesn't stop the test if world_hit
+     * returns false without setting it. */
+    Hit h = {0};
     CHECK(world_hit(&world, ray_new(vec3(0, 0, 0), vec3(0, 0, -1)), 0, INFINITY, &h));
     CHECK(h.t == 1.5);
 }
@@ -99,7 +101,7 @@ static void test_world_matches_sphere_by_sphere(void) {
                     want_t = t;
                 }
             }
-            Hit h;
+            Hit h = {0};
             bool got = world_hit(&world, rays[i], 0.001, DBL_MAX, &h);
             CHECK(got == (want != NULL));
             if (got && want != NULL) {
