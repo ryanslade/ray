@@ -23,3 +23,5 @@ kotlin/build/
 kotlin/out.ppm
 metal/.build/
 metal/out.ppm
+scala/out/
+scala/out.ppm

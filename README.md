@@ -1,5 +1,5 @@
-A simple ray tracer, implemented in Go, OCaml, Rust, Zig, C, Janet, Clojure and
-Kotlin, and on the GPU with Metal.
+A simple ray tracer, implemented in Go, OCaml, Rust, Zig, C, Janet, Clojure,
+Kotlin and Scala, and on the GPU with Metal.
 
 This project was based on the book, [Ray Tracing in One Weekend](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8)
 
@@ -12,6 +12,7 @@ This project was based on the book, [Ray Tracing in One Weekend](https://www.ama
 - [`clojure/`](clojure) — a port to Clojure on the JVM, also byte-identical to the
   Rust port
 - [`kotlin/`](kotlin) — a port to Kotlin on the JVM, byte-identical as well
+- [`scala/`](scala) — a port to Scala 3 on the JVM, also byte-identical
 - [`metal/`](metal) — a port to Metal compute shaders, driven from Swift, rendering
   every pixel on its own GPU thread
 
@@ -24,7 +25,7 @@ An example of an image created using this library:
 Each port has a Makefile with the same targets:
 
 ```sh
-cd rust      # or go, ocaml, zig, c, janet, clojure, kotlin, metal
+cd rust      # or go, ocaml, zig, c, janet, clojure, kotlin, scala, metal
 make build   # builds it
 make test    # runs the tests
 make example # renders the example scene to out.ppm, or another path with OUT=
@@ -49,6 +50,7 @@ Each port needs:
 - Clojure: Java >= 25 and the Clojure CLI
 - Kotlin: Java >= 17 to run Gradle, which downloads Java 25 if it isn't
   installed
+- Scala: only curl, since `scala/mill` downloads Mill, which downloads Java 25
 - Metal: macOS 15 and Swift 6
 
 The Metal shader is compiled when the program starts, so Xcode isn't needed,
@@ -58,18 +60,19 @@ when the Command Line Tools are selected.
 
 ## Performance
 
-All nine implementations render the same random scene (about 480 spheres) at
+All ten implementations render the same random scene (about 480 spheres) at
 800x450 with 100 samples per pixel. The CPU versions split rows across all
 cores; the Metal version runs on the GPU.
 Measured on an Apple M1 Max (10 CPU cores, 32 GPU cores), Go 1.27.2, OCaml
 5.5.1 (no flambda), Rust 1.99.1, Zig 0.16.0, Apple clang 21.0.0, Janet 1.41.2,
-Clojure 1.12.6 and Kotlin 2.4.21 on OpenJDK 25.0.4, Swift 6.3.3 on macOS 26:
+Clojure 1.12.6, Kotlin 2.4.21 and Scala 3.10.0 on OpenJDK 25.0.4, Swift 6.3.3 on
+macOS 26:
 
-| Benchmark                                  | Go     | OCaml   | Rust   | Zig    | C      | Janet  | Clojure | Kotlin | Metal  |
-| ------------------------------------------ | ------ | ------- | ------ | ------ | ------ | ------ | ------- | ------ | ------ |
-| Example scene, 800x450, 100 spp (wall)     | 20.3 s | 35.4 s  | 8.3 s  | 8.5 s  | 7.1 s  | 400 s  | 18.1 s  | 8.9 s  | 0.8 s  |
-| Example scene, 800x450, 100 spp (CPU)      | 175 s  | 305 s   | 75 s   | 82 s   | 62 s   | 3871 s | 166 s   | 84 s   | (GPU)  |
-| Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   | 5 ms   | 5.4 ms | 5.2 ms | 455 ms | 9.1 ms  | 8.9 ms | 3.3 ms |
+| Benchmark                                  | Go     | OCaml   | Rust   | Zig    | C      | Janet  | Clojure | Kotlin | Scala  | Metal  |
+| ------------------------------------------ | ------ | ------- | ------ | ------ | ------ | ------ | ------- | ------ | ------ | ------ |
+| Example scene, 800x450, 100 spp (wall)     | 20.3 s | 35.4 s  | 8.3 s  | 8.5 s  | 7.1 s  | 400 s  | 18.1 s  | 8.9 s  | 9.1 s  | 0.8 s  |
+| Example scene, 800x450, 100 spp (CPU)      | 175 s  | 305 s   | 75 s   | 82 s   | 62 s   | 3871 s | 166 s   | 84 s   | 86 s   | (GPU)  |
+| Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   | 5 ms   | 5.4 ms | 5.2 ms | 455 ms | 9.1 ms  | 8.9 ms | 10 ms  | 3.3 ms |
 
 With `GOEXPERIMENT=simd`, the Go example scene takes 5.9 s (wall)
 and 50 s (CPU).
@@ -78,7 +81,8 @@ The test scene benchmark is `go test -bench Render` in `go/`,
 `dune exec --release bench/bench.exe` in `ocaml/`, `cargo bench` in `rust/`,
 `zig build bench -Doptimize=ReleaseFast` in `zig/`, `make bench` in `c/`,
 `janet bench.janet` in `janet/`, `clojure -M:bench` in `clojure/`,
-`./gradlew bench` in `kotlin/` and `swift run -c release bench` in `metal/`.
+`./gradlew bench` in `kotlin/`, `./mill bench` in `scala/` and
+`swift run -c release bench` in `metal/`.
 
 The OCaml version allocates short-lived vectors throughout (including one for
 every ray/sphere test), where Go keeps them on the stack. In OCaml 5 every
@@ -157,6 +161,21 @@ Clojure port; on the test scene, with only three spheres, the two JVM ports are
 much closer. Gradle builds with compiler warnings as errors and checks
 formatting with ktlint. The benchmark runs from the test classes, after the
 same three second warm-up.
+
+The Scala port is the Kotlin one in Scala 3: vectors and colours are case
+classes with symbolic operators, plus an extension method on `Double` for
+scaling on the left, and materials are an enum taken apart with `match`. The
+generator works on plain `Long`s, whose arithmetic wraps, with `>>>` for the
+unsigned shifts. Scattering and the closest hit return `Option`s, and the
+bounce loop is a `@tailrec` function that the compiler turns into a loop. Its
+renders are byte-identical to Rust's. One trap: `t.isNaN` on a `Double`
+compiles to a conversion to `java.lang.Double` so as to call its `isNaN`
+method, boxing the result of every ray/sphere test; calling
+`java.lang.Double.isNaN(t)` instead makes the example scene 2.5x faster. Mill
+builds it with compiler warnings as errors and checks formatting with
+scalafmt. The `mill` launcher script downloads Mill, which downloads Java 25,
+so nothing needs installing first. The benchmark runs from the test classes,
+after the same three second warm-up.
 
 The Metal version traces every pixel on its own GPU thread. The Swift host
 builds the scene and camera in double precision exactly as the other versions

@@ -160,6 +160,26 @@ jobs:
       # Checks the benchmark builds and runs (one iteration on one thread).
       - run: ./gradlew bench --args="1 1"
 
+  scala:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scala
+    steps:
+      - uses: actions/checkout@v7
+      # Mill, the JDK it downloads and the dependencies.
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/mill
+            ~/.cache/coursier
+          key: scala-${{ hashFiles('scala/build.mill') }}
+      - run: ./mill mill.scalalib.scalafmt.ScalafmtModule/checkFormatAll
+      # Runs the tests, with compiler warnings as errors.
+      - run: ./mill test
+      # Checks the benchmark builds and runs (one iteration on one thread).
+      - run: ./mill bench 1 1
+
   metal:
     runs-on: macos-15
     defaults:
