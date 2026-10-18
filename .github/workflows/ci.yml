@@ -116,6 +116,32 @@ jobs:
       # The same as jpm test, without needing jpm.
       - run: for t in test/*.janet; do janet "$t"; done
 
+  clojure:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clojure
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: DeLaGuardo/setup-clojure@13.7.0
+        with:
+          cli: latest
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+          key: clojure-${{ hashFiles('clojure/deps.edn') }}
+      - run: clojure -M:fmt check
+      - run: clojure -M:lint
+      - run: clojure -M:test
+      # Checks the benchmark builds and runs (one iteration on one thread).
+      - run: clojure -M:bench 1 1
+
   metal:
     runs-on: macos-15
     defaults:

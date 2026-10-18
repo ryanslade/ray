@@ -14,5 +14,8 @@ c/out.ppm
 c/tests/golden.actual.ppm
 janet/out.ppm
 janet/test/golden.actual.ppm
+clojure/.cpcache/
+clojure/out.ppm
+clojure/test/golden.actual.ppm
 metal/.build/
 metal/out.ppm
