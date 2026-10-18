@@ -36,7 +36,7 @@ Running `make` by itself lists the targets.
 
 The Go example writes `example/out.jpg` instead. On arm64,
 `make example GOEXPERIMENT=simd` tests spheres two at a time with NEON, which
-makes the example scene about 3.4x faster.
+makes the example scene about 1.35x faster.
 
 Each port needs:
 
@@ -70,8 +70,8 @@ macOS 26:
 
 | Benchmark                                  | Go     | OCaml   | Rust   | Zig    | C      | Janet  | Clojure | Kotlin | Scala  | Metal  |
 | ------------------------------------------ | ------ | ------- | ------ | ------ | ------ | ------ | ------- | ------ | ------ | ------ |
-| Example scene, 800x450, 100 spp (wall)     | 20.3 s | 35.4 s  | 8.3 s  | 8.5 s  | 7.1 s  | 400 s  | 18.1 s  | 8.9 s  | 9.1 s  | 0.8 s  |
-| Example scene, 800x450, 100 spp (CPU)      | 175 s  | 305 s   | 75 s   | 82 s   | 62 s   | 3871 s | 166 s   | 84 s   | 86 s   | (GPU)  |
+| Example scene, 800x450, 100 spp (wall)     | 7.9 s  | 35.4 s  | 8.3 s  | 8.5 s  | 7.1 s  | 400 s  | 18.1 s  | 8.9 s  | 9.1 s  | 0.8 s  |
+| Example scene, 800x450, 100 spp (CPU)      | 68 s   | 305 s   | 75 s   | 82 s   | 62 s   | 3871 s | 166 s   | 84 s   | 86 s   | (GPU)  |
 | Test scene, 100x100, 50 spp (per render)   | 13 ms  | 26 ms   | 5 ms   | 5.4 ms | 5.2 ms | 455 ms | 9.1 ms  | 8.9 ms | 10 ms  | 3.3 ms |
 
 With `GOEXPERIMENT=simd`, the Go example scene takes 5.9 s (wall)

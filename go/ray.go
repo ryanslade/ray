@@ -175,18 +175,34 @@ func (hl *HitterList) Hit(r Ray, tMin, tMax float64, rec *HitRecord) bool {
 // hitSpheresScalar writes the closest sphere hit to rec, returning its
 // distance, or tMax if there is none.
 func (hl *HitterList) hitSpheresScalar(r Ray, tMin, tMax float64, rec *HitRecord) (float64, bool) {
-	var hitAnything bool
-	closest := tMax
-	// Sphere.Hit only writes to rec when it finds a hit closer than closest,
-	// so it can write to rec directly.
+	// This is Sphere.Hit written out in the loop: as a call it is too big to
+	// inline, and the call costs more than the arithmetic. Only the hit record
+	// for the closest sphere is ever needed, so just track which one it is
+	// until the end.
+	d := r.Direction
+	a := Dot(d, d)
+	closest, best := tMax, -1
 	for i := range hl.spheres {
-		if !hl.spheres[i].Hit(r, tMin, closest, rec) {
+		s := &hl.spheres[i]
+		oc := r.Origin.Sub(s.Center)
+		b := Dot(oc, d)
+		c := Dot(oc, oc) - s.Radius*s.Radius
+		discriminant := b*b - a*c
+		if discriminant < 0 {
 			continue
 		}
-		hitAnything = true
-		closest = rec.T
+		sqrtD := math.Sqrt(discriminant)
+		if t := (-b - sqrtD) / a; t < closest && t > tMin {
+			closest, best = t, i
+		} else if t := (-b + sqrtD) / a; t < closest && t > tMin {
+			closest, best = t, i
+		}
 	}
-	return closest, hitAnything
+	if best < 0 {
+		return tMax, false
+	}
+	hl.spheres[best].record(r, closest, rec)
+	return closest, true
 }
 
 type Sphere struct {
