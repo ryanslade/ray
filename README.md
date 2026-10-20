@@ -1,5 +1,5 @@
 A simple ray tracer, implemented in Go, OCaml, Rust, Zig, C, Janet, Clojure,
-Kotlin and Scala, and on the GPU with Metal.
+Kotlin, Scala and Common Lisp, and on the GPU with Metal.
 
 This project was based on the book, [Ray Tracing in One Weekend](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8)
 
@@ -13,6 +13,8 @@ This project was based on the book, [Ray Tracing in One Weekend](https://www.ama
   Rust port
 - [`kotlin/`](kotlin) — a port to Kotlin on the JVM, byte-identical as well
 - [`scala/`](scala) — a port to Scala 3 on the JVM, also byte-identical
+- [`common-lisp/`](common-lisp) — a port to Common Lisp on SBCL, byte-identical
+  as well
 - [`metal/`](metal) — a port to Metal compute shaders, driven from Swift, rendering
   every pixel on its own GPU thread
 
@@ -25,7 +27,7 @@ An example of an image created using this library:
 Each port has a Makefile with the same targets:
 
 ```sh
-cd rust      # or go, ocaml, zig, c, janet, clojure, kotlin, scala, metal
+cd rust      # or go, ocaml, zig, c, janet, clojure, kotlin, scala, common-lisp, metal
 make build   # builds it
 make test    # runs the tests
 make example # renders the example scene to out.ppm, or another path with OUT=
@@ -51,6 +53,7 @@ Each port needs:
 - Kotlin: Java >= 17 to run Gradle, which downloads Java 25 if it isn't
   installed
 - Scala: only curl, since `scala/mill` downloads Mill, which downloads Java 25
+- Common Lisp: SBCL 2.6, which includes ASDF
 - Metal: macOS 15 and Swift 6
 
 The Metal shader is compiled when the program starts, so Xcode isn't needed,
@@ -60,19 +63,19 @@ when the Command Line Tools are selected.
 
 ## Performance
 
-All ten implementations render the same random scene (about 480 spheres) at
+All eleven implementations render the same random scene (about 480 spheres) at
 800x450 with 100 samples per pixel. The CPU versions split rows across all
 cores; the Metal version runs on the GPU.
 Measured on an Apple M1 Max (10 CPU cores, 32 GPU cores), Go 1.27.2, OCaml
 5.5.1 (no flambda), Rust 1.99.1, Zig 0.16.0, Apple clang 21.0.0, Janet 1.41.2,
-Clojure 1.12.6, Kotlin 2.4.21 and Scala 3.10.0 on OpenJDK 25.0.4, Swift 6.3.3 on
-macOS 26:
+Clojure 1.12.6, Kotlin 2.4.21 and Scala 3.10.0 on OpenJDK 25.0.4, SBCL 2.6.9,
+Swift 6.3.3 on macOS 26:
 
-| Benchmark                                | Metal  | Zig    | C      | Rust  | Go    | Kotlin | Scala | OCaml  | Clojure | Janet  |
-| ---------------------------------------- | ------ | ------ | ------ | ----- | ----- | ------ | ----- | ------ | ------- | ------ |
-| Example scene, 800x450, 100 spp (wall)   | 0.8 s  | 4.3 s  | 5.3 s  | 5.4 s | 7.9 s | 8.9 s  | 9.1 s | 13.4 s | 18.1 s  | 400 s  |
-| Example scene, 800x450, 100 spp (CPU)    | (GPU)  | 40 s   | 50 s   | 51 s  | 68 s  | 84 s   | 86 s  | 126 s  | 166 s   | 3871 s |
-| Test scene, 100x100, 50 spp (per render) | 3.3 ms | 4.9 ms | 5.2 ms | 5 ms  | 13 ms | 8.9 ms | 10 ms | 21 ms  | 9.1 ms  | 455 ms |
+| Benchmark                                | Metal  | Zig    | C      | Rust  | Go    | Common Lisp | Kotlin | Scala | OCaml  | Clojure | Janet  |
+| ---------------------------------------- | ------ | ------ | ------ | ----- | ----- | ----------- | ------ | ----- | ------ | ------- | ------ |
+| Example scene, 800x450, 100 spp (wall)   | 0.8 s  | 4.3 s  | 5.3 s  | 5.4 s | 7.9 s | 8.0 s       | 8.9 s  | 9.1 s | 13.4 s | 18.1 s  | 400 s  |
+| Example scene, 800x450, 100 spp (CPU)    | (GPU)  | 40 s   | 50 s   | 51 s  | 68 s  | 73 s        | 84 s   | 86 s  | 126 s  | 166 s   | 3871 s |
+| Test scene, 100x100, 50 spp (per render) | 3.3 ms | 4.9 ms | 5.2 ms | 5 ms  | 13 ms | 20 ms       | 8.9 ms | 10 ms | 21 ms  | 9.1 ms  | 455 ms |
 
 With `GOEXPERIMENT=simd`, the Go example scene takes 5.9 s (wall)
 and 50 s (CPU).
@@ -81,8 +84,8 @@ The test scene benchmark is `go test -bench Render` in `go/`,
 `dune exec --release bench/bench.exe` in `ocaml/`, `cargo bench` in `rust/`,
 `zig build bench -Doptimize=ReleaseFast` in `zig/`, `make bench` in `c/`,
 `janet bench.janet` in `janet/`, `clojure -M:bench` in `clojure/`,
-`./gradlew bench` in `kotlin/`, `./mill bench` in `scala/` and
-`swift run -c release bench` in `metal/`.
+`./gradlew bench` in `kotlin/`, `./mill bench` in `scala/`, `make bench` in
+`common-lisp/` and `swift run -c release bench` in `metal/`.
 
 The OCaml version allocates short-lived vectors throughout, where Go keeps
 them on the stack. In OCaml 5 every minor collection pauses all domains, so the
@@ -192,6 +195,32 @@ builds it with compiler warnings as errors and checks formatting with
 scalafmt. The `mill` launcher script downloads Mill, which downloads Java 25,
 so nothing needs installing first. The benchmark runs from the test classes,
 after the same three second warm-up.
+
+The Common Lisp port runs on SBCL, which compiles to native code, and its
+renders are byte-identical to Rust's. Vectors are structures with unboxed
+double slots and inlined operations, materials are structures taken apart with
+`etypecase`, and the SplitMix64 generator wraps its arithmetic to 64 bits with
+`ldb`, which SBCL compiles to plain machine instructions rather than bignum
+arithmetic. Common Lisp lets `(+ a b c)` add its arguments in any order, so the
+arithmetic is written two operands at a time. SBCL has no escape analysis, so
+every vector operation allocates its result, even when it is inlined into
+another one. Compiler macros on the vector operations therefore rewrite nested
+expressions such as `(v- (v+ a (vscale s b)) c)` into a single allocation, each
+component computed with the same operations in the same order. That cut
+allocation by 40% and made a single-threaded render of the test scene 1.4x
+faster. What remains is still hundreds of megabytes a second of garbage, and
+every collection stops all the threads, so the example and the benchmark let
+256 MB be allocated between collections rather than SBCL's default of about
+50 MB, which makes the test scene about twice as fast on ten threads. The
+closest-hit loop works on plain doubles from a flat array of centres and
+squared radii, like the OCaml and Janet versions, and without array bounds
+checks, which made the example scene about 15% faster. SBCL turns invalid
+operations, overflow and division by zero into errors, so the render threads
+mask those traps to get IEEE 754's NaNs and infinities, as the other versions
+do. The build treats compiler warnings as errors, style warnings included, and
+the tests use a small harness of their own, so nothing needs installing but
+SBCL. `make build` saves an executable image with the compiled code already
+loaded.
 
 The Metal version traces every pixel on its own GPU thread. The Swift host
 builds the scene and camera in double precision exactly as the other versions

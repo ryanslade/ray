@@ -191,6 +191,25 @@ jobs:
       # Checks the benchmark builds and runs (one iteration on one thread).
       - run: ./mill bench 1 1
 
+  common-lisp:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: common-lisp
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install SBCL
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -sSfL https://downloads.sourceforge.net/project/sbcl/sbcl/2.6.9/sbcl-2.6.9-x86-64-linux-binary.tar.bz2 | tar xj
+          cd sbcl-2.6.9-x86-64-linux && sudo sh install.sh
+      # Runs the tests, with compiler warnings (including style warnings) as
+      # errors.
+      - run: make test
+      - run: make build
+      # Checks the benchmark builds and runs (one iteration on one thread).
+      - run: make bench ARGS="1 1"
+
   metal:
     runs-on: macos-15
     defaults:

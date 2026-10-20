@@ -25,3 +25,6 @@ metal/.build/
 metal/out.ppm
 scala/out/
 scala/out.ppm
+common-lisp/build/
+common-lisp/out.ppm
+common-lisp/tests/golden.actual.ppm
