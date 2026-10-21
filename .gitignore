@@ -28,3 +28,6 @@ scala/out.ppm
 common-lisp/build/
 common-lisp/out.ppm
 common-lisp/tests/golden.actual.ppm
+elixir/_build/
+elixir/out.ppm
+elixir/test/golden.actual.ppm

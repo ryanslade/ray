@@ -1,5 +1,5 @@
 A simple ray tracer, implemented in Go, OCaml, Rust, Zig, C, Janet, Clojure,
-Kotlin, Scala and Common Lisp, and on the GPU with Metal.
+Kotlin, Scala, Common Lisp and Elixir, and on the GPU with Metal.
 
 This project was based on the book, [Ray Tracing in One Weekend](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8)
 
@@ -15,6 +15,8 @@ This project was based on the book, [Ray Tracing in One Weekend](https://www.ama
 - [`scala/`](scala) — a port to Scala 3 on the JVM, also byte-identical
 - [`common-lisp/`](common-lisp) — a port to Common Lisp on SBCL, byte-identical
   as well
+- [`elixir/`](elixir) — a port to Elixir, rendering rows in parallel BEAM
+  processes, also byte-identical
 - [`metal/`](metal) — a port to Metal compute shaders, driven from Swift, rendering
   every pixel on its own GPU thread
 
@@ -27,7 +29,8 @@ An example of an image created using this library:
 Each port has a Makefile with the same targets:
 
 ```sh
-cd rust      # or go, ocaml, zig, c, janet, clojure, kotlin, scala, common-lisp, metal
+cd rust      # or go, ocaml, zig, c, janet, clojure, kotlin, scala, common-lisp,
+             # elixir, metal
 make build   # builds it
 make test    # runs the tests
 make example # renders the example scene to out.ppm, or another path with OUT=
@@ -54,6 +57,7 @@ Each port needs:
   installed
 - Scala: only curl, since `scala/mill` downloads Mill, which downloads Java 25
 - Common Lisp: SBCL 2.6, which includes ASDF
+- Elixir: Elixir >= 1.18 on Erlang/OTP >= 28
 - Metal: macOS 15 and Swift 6
 
 The Metal shader is compiled when the program starts, so Xcode isn't needed,
@@ -63,19 +67,19 @@ when the Command Line Tools are selected.
 
 ## Performance
 
-All eleven implementations render the same random scene (about 480 spheres) at
+All twelve implementations render the same random scene (about 480 spheres) at
 800x450 with 100 samples per pixel. The CPU versions split rows across all
 cores; the Metal version runs on the GPU.
 Measured on an Apple M1 Max (10 CPU cores, 32 GPU cores), Go 1.27.2, OCaml
 5.5.1 (no flambda), Rust 1.99.1, Zig 0.16.0, Apple clang 21.0.0, Janet 1.41.2,
 Clojure 1.12.6, Kotlin 2.4.21 and Scala 3.10.0 on OpenJDK 25.0.4, SBCL 2.6.9,
-Swift 6.3.3 on macOS 26:
+Elixir 1.18.4 on Erlang/OTP 28.0, Swift 6.3.3 on macOS 26:
 
-| Benchmark                                | Metal  | Zig    | C      | Rust  | Go    | Common Lisp | Kotlin | Scala | OCaml  | Clojure | Janet  |
-| ---------------------------------------- | ------ | ------ | ------ | ----- | ----- | ----------- | ------ | ----- | ------ | ------- | ------ |
-| Example scene, 800x450, 100 spp (wall)   | 0.8 s  | 4.3 s  | 5.3 s  | 5.4 s | 7.9 s | 8.0 s       | 8.9 s  | 9.1 s | 13.4 s | 18.1 s  | 400 s  |
-| Example scene, 800x450, 100 spp (CPU)    | (GPU)  | 40 s   | 50 s   | 51 s  | 68 s  | 73 s        | 84 s   | 86 s  | 126 s  | 166 s   | 3871 s |
-| Test scene, 100x100, 50 spp (per render) | 3.3 ms | 4.9 ms | 5.2 ms | 5 ms  | 13 ms | 20 ms       | 8.9 ms | 10 ms | 21 ms  | 9.1 ms  | 455 ms |
+| Benchmark                                | Metal  | Zig    | C      | Rust  | Go    | Common Lisp | Kotlin | Scala | OCaml  | Clojure | Elixir | Janet  |
+| ---------------------------------------- | ------ | ------ | ------ | ----- | ----- | ----------- | ------ | ----- | ------ | ------- | ------ | ------ |
+| Example scene, 800x450, 100 spp (wall)   | 0.8 s  | 4.3 s  | 5.3 s  | 5.4 s | 7.9 s | 8.0 s       | 8.9 s  | 9.1 s | 13.4 s | 18.1 s  | 155 s  | 400 s  |
+| Example scene, 800x450, 100 spp (CPU)    | (GPU)  | 40 s   | 50 s   | 51 s  | 68 s  | 73 s        | 84 s   | 86 s  | 126 s  | 166 s   | 1422 s | 3871 s |
+| Test scene, 100x100, 50 spp (per render) | 3.3 ms | 4.9 ms | 5.2 ms | 5 ms  | 13 ms | 20 ms       | 8.9 ms | 10 ms | 21 ms  | 9.1 ms  | 133 ms | 455 ms |
 
 With `GOEXPERIMENT=simd`, the Go example scene takes 5.9 s (wall)
 and 50 s (CPU).
@@ -85,7 +89,8 @@ The test scene benchmark is `go test -bench Render` in `go/`,
 `zig build bench -Doptimize=ReleaseFast` in `zig/`, `make bench` in `c/`,
 `janet bench.janet` in `janet/`, `clojure -M:bench` in `clojure/`,
 `./gradlew bench` in `kotlin/`, `./mill bench` in `scala/`, `make bench` in
-`common-lisp/` and `swift run -c release bench` in `metal/`.
+`common-lisp/`, `mix bench` in `elixir/` and `swift run -c release bench` in
+`metal/`.
 
 The OCaml version allocates short-lived vectors throughout, where Go keeps
 them on the stack. In OCaml 5 every minor collection pauses all domains, so the
@@ -221,6 +226,26 @@ do. The build treats compiler warnings as errors, style warnings included, and
 the tests use a small harness of their own, so nothing needs installing but
 SBCL. `make build` saves an executable image with the compiled code already
 loaded.
+
+The Elixir port runs on the BEAM, and its renders are byte-identical to Rust's
+as well. Vectors are tuples of floats, materials are tagged tuples matched in
+function heads, and nothing is mutable, so every function that draws random
+numbers takes the generator's state and returns the new one with its result.
+Each row is rendered by its own process, up to one per core at a time; a
+process has its own heap and garbage collector, so collections don't stop the
+others, and the world and camera are copied to each. BEAM integers have
+arbitrary precision, but those over 59 bits are bignums on the heap, which
+made SplitMix64's 64-bit arithmetic three times slower than it is now that the
+state is kept as two 32-bit halves and the multiplications are split so that
+no intermediate result needs more than 59 bits. Arithmetic compiles to
+instructions that check their operands' types and box every result, unless
+the compiler can tell that the operands are floats; `is_float` guards on the
+vector operations and the closest-hit loop tell it, which made the test scene
+1.4x faster. BEAM floats can't be NaN or infinite (an operation that would
+make one raises an error instead), which no render needs, but the test that
+NaN becomes 255 has nothing to test. The build treats compiler warnings as
+errors and CI checks formatting with `mix format`. `make build` builds an
+escript, which runs anywhere Erlang is installed.
 
 The Metal version traces every pixel on its own GPU thread. The Swift host
 builds the scene and camera in double precision exactly as the other versions

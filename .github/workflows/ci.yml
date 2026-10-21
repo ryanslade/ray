@@ -210,6 +210,24 @@ jobs:
       # Checks the benchmark builds and runs (one iteration on one thread).
       - run: make bench ARGS="1 1"
 
+  elixir:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: elixir
+    steps:
+      - uses: actions/checkout@v7
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28"
+          elixir-version: "1.18"
+      - run: mix format --check-formatted
+      # Runs the tests, with compiler warnings as errors.
+      - run: mix test --warnings-as-errors
+      - run: mix escript.build
+      # Checks the benchmark builds and runs (one iteration in one process).
+      - run: mix bench 1 1
+
   metal:
     runs-on: macos-15
     defaults:
