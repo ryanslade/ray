@@ -2,7 +2,9 @@
   "8-bit RGB images. Row 0 is the top."
   (:require [clojure.java.io :as io]
             [raytracer.vec3])
-  (:import (java.util Arrays)
+  (:import (java.awt.image BufferedImage)
+           (java.util Arrays)
+           (javax.imageio ImageIO)
            (raytracer.vec3 Vec3)))
 
 (set! *warn-on-reflection* true)
@@ -65,6 +67,22 @@
     (System/arraycopy pixels 0 out (alength header) (alength pixels))
     out))
 
-(defn save-ppm [^Image img path]
-  (with-open [out (io/output-stream (io/file path))]
-    (.write out (to-ppm img))))
+(defn to-buffered-image
+  "The image as a java.awt BufferedImage, for encoding with ImageIO."
+  ^BufferedImage [^Image img]
+  (let [w (.-width img)
+        h (.-height img)
+        ^bytes p (.-pixels img)
+        rgb (int-array (* w h))]
+    (dotimes [i (alength rgb)]
+      (let [j (* 3 i)]
+        (aset rgb i (unchecked-int
+                     (bit-or (bit-shift-left (Byte/toUnsignedInt (aget p j)) 16)
+                             (bit-shift-left (Byte/toUnsignedInt (aget p (inc j))) 8)
+                             (Byte/toUnsignedInt (aget p (+ j 2))))))))
+    (doto (BufferedImage. w h BufferedImage/TYPE_INT_RGB)
+      (.setRGB 0 0 w h rgb 0 w))))
+
+(defn save-jpeg [^Image img path]
+  (when-not (ImageIO/write (to-buffered-image img) "jpg" (io/file path))
+    (throw (java.io.IOException. "no JPEG encoder"))))

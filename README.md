@@ -39,9 +39,10 @@ make clean   # removes the build output
 
 Running `make` by itself lists the targets.
 
-The Go example writes `example/out.jpg` instead. On arm64,
-`make example GOEXPERIMENT=simd` tests spheres two at a time with NEON, which
-makes the example scene about 1.35x faster.
+The Go example writes `example/out.jpg` instead, and the Clojure example writes
+`out.jpg`. On arm64, the Go port's `make example GOEXPERIMENT=simd` tests
+spheres two at a time with NEON, which makes the example scene about 1.35x
+faster.
 
 Each port needs:
 

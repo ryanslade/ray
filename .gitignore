@@ -15,7 +15,7 @@ c/tests/golden.actual.ppm
 janet/out.ppm
 janet/test/golden.actual.ppm
 clojure/.cpcache/
-clojure/out.ppm
+clojure/out.jpg
 clojure/test/golden.actual.ppm
 kotlin/.gradle/
 kotlin/.kotlin/

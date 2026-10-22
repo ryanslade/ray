@@ -49,7 +49,7 @@
                     (material/metal (v/vec3 0.8 0.8 0.8) 0.2))])))
 
 (defn -main [& args]
-  (let [output (or (first args) "out.ppm")
+  (let [output (or (first args) "out.jpg")
         _ (binding [*out* *err*] (println "Generating world"))
         world (random-world (rng/rng 1))
         look-from (v/vec3 3.0 2.0 3.0)
@@ -65,7 +65,7 @@
     (binding [*out* *err*] (println "Rendering on" threads "threads"))
     (let [img (render/render width height samples cam world)]
       (try
-        (image/save-ppm img output)
+        (image/save-jpeg img output)
         (binding [*out* *err*] (println "Wrote" output))
         (catch java.io.IOException e
           (binding [*out* *err*] (println (str "Writing " output ": " (.getMessage e))))

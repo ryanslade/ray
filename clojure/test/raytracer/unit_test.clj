@@ -1,5 +1,6 @@
 (ns raytracer.unit-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.java.io :as io]
+            [clojure.test :refer [deftest is testing]]
             [raytracer.hit :as hit]
             [raytracer.image :as image]
             [raytracer.material :as material]
@@ -76,3 +77,20 @@
   (let [ppm (image/to-ppm (image/image 3 2))]
     (is (= "P6\n3 2\n255\n" (String. ppm 0 11 "US-ASCII")))
     (is (= (+ 11 (* 3 2 3)) (alength ppm)))))
+
+(deftest buffered-image-pixels
+  (let [img (image/image 2 1)]
+    (image/set-pixel! img 1 0 (v/vec3 1.0 0.5 0.0))
+    (let [bi (image/to-buffered-image img)]
+      (is (= 2 (.getWidth bi)))
+      (is (= 1 (.getHeight bi)))
+      (is (= 0x000000 (bit-and (.getRGB bi 0 0) 0xffffff)))
+      (is (= 0xff7f00 (bit-and (.getRGB bi 1 0) 0xffffff))))))
+
+(deftest jpeg-round-trip
+  (let [f (java.io.File/createTempFile "raytracer" ".jpg")]
+    (try
+      (image/save-jpeg (image/image 4 3) f)
+      (let [bi (javax.imageio.ImageIO/read (io/file f))]
+        (is (= [4 3] [(.getWidth bi) (.getHeight bi)])))
+      (finally (.delete f)))))
