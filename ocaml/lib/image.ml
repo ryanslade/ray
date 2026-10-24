@@ -6,7 +6,9 @@ let create ~width ~height =
 let width img = img.width
 let height img = img.height
 let offset img ~x ~y = ((y * img.width) + x) * 3
-let to_byte v = Char.unsafe_chr (int_of_float (255.99 *. Float.min 1. v))
+
+let to_byte v =
+  Char.unsafe_chr (int_of_float (255.99 *. Float.max 0. (Float.min 1. v)))
 
 let set img ~x ~y (c : Color.t) =
   let i = offset img ~x ~y in
