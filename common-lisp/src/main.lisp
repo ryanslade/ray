@@ -29,7 +29,7 @@ to the metal sphere."
           (sphere (vec3 0d0 1d0 0d0) 1d0 (dielectric 1.5d0))
           (sphere (vec3 -4d0 1d0 0d0) 1d0 (metal (vec3 0.8d0 0.8d0 0.8d0) 0.2d0))))))
 
-(defun main (&optional (output "out.ppm"))
+(defun main (&optional (output "out.png"))
   "Renders the example scene to OUTPUT."
   (use-large-nursery)
   (format *error-output* "Generating world~%")
@@ -46,7 +46,7 @@ to the metal sphere."
          (threads (cpu-count)))
     (format *error-output* "Rendering on ~D threads~%" threads)
     (let ((img (render-with-threads threads +width+ +height+ +samples+ camera world)))
-      (handler-case (save-ppm img output)
+      (handler-case (save-png img output)
         ((or file-error stream-error) (e)
           (format *error-output* "Writing ~A: ~A~%" output
                   (let ((*print-pretty* nil)) (princ-to-string e)))

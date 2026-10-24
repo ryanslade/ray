@@ -124,4 +124,40 @@ defmodule Raytracer.UnitTest do
     assert binary_part(ppm, 0, 11) == "P6\n3 2\n255\n"
     assert byte_size(ppm) == 11 + 3 * 2 * 3
   end
+
+  # Splits a PNG into its chunks, as {type, data} pairs, checking their CRCs.
+  defp png_chunks(<<>>), do: []
+
+  defp png_chunks(
+         <<len::32, type::binary-size(4), data::binary-size(len), crc::32, rest::binary>>
+       ) do
+    assert crc == :erlang.crc32(type <> data), "#{type} CRC"
+    [{type, data} | png_chunks(rest)]
+  end
+
+  test "PNG" do
+    {width, height} = {20, 12}
+
+    img =
+      for y <- 0..(height - 1), x <- 0..(width - 1), reduce: Image.new(width, height) do
+        img -> Image.set_pixel(img, x, y, {x / width, y / height, rem(x + y, 7) / 7})
+      end
+
+    assert <<0x89, "PNG\r\n", 0x1A, "\n", rest::binary>> = Image.to_png(img)
+    assert [{"IHDR", header}, {"IDAT", data}, {"IEND", ""}] = png_chunks(rest)
+    assert header == <<width::32, height::32, 8, 2, 0, 0, 0>>
+
+    raw = :zlib.uncompress(data)
+    row_bytes = 1 + 3 * width
+    assert byte_size(raw) == row_bytes * height
+
+    for y <- 0..(height - 1) do
+      assert <<0, row::binary>> = binary_part(raw, y * row_bytes, row_bytes)
+
+      for x <- 0..(width - 1) do
+        <<r, g, b>> = binary_part(row, 3 * x, 3)
+        assert {r, g, b} == Image.pixel(img, x, y), "pixel (#{x}, #{y})"
+      end
+    end
+  end
 end

@@ -1,4 +1,4 @@
-# Renders the example scene. Usage: janet main.janet [output.ppm]
+# Renders the example scene. Usage: janet main.janet [output.png]
 
 (import ./raytracer/camera)
 (import ./raytracer/image)
@@ -31,7 +31,7 @@
   (world/new [ground ;small-spheres ;large-spheres]))
 
 (defn main [_ &opt output]
-  (default output "out.ppm")
+  (default output "out.png")
   (eprint "Generating world")
   (def w (random-world (math/rng 1)))
   (def look-from [3 2 3])
@@ -46,5 +46,5 @@
              :focus-dist (vec3/length (vec3/sub look-from look-at))))
   (eprintf "Rendering on %d threads" (render/cpu-count))
   (def img (render/render width height samples cam w))
-  (image/save-ppm img output)
+  (image/save-png img output)
   (eprint "Wrote " output))

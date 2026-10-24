@@ -36,6 +36,14 @@ bool image_write_ppm(const Image *img, FILE *f);
 /* Writes the image to `path`. Returns false and sets errno on failure. */
 bool image_save_ppm(const Image *img, const char *path);
 
+/* Writes the image in PNG format, with the pixel data stored uncompressed, so
+ * the file is about the same size as the PPM. Returns false on a write error,
+ * or if the image is too large for a PNG or to allocate. */
+bool image_write_png(const Image *img, FILE *f);
+
+/* Writes the image to `path`. Returns false and sets errno on failure. */
+bool image_save_png(const Image *img, const char *path);
+
 /* Writes a colour to an RGB pixel, clamping each channel to [0, 1]. */
 void image_set_pixel(uint8_t px[3], Color c);
 

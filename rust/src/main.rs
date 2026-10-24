@@ -53,7 +53,7 @@ fn random_world(rng: &mut Rng) -> World {
 }
 
 fn main() -> ExitCode {
-    let output = env::args().nth(1).unwrap_or_else(|| "out.ppm".to_string());
+    let output = env::args().nth(1).unwrap_or_else(|| "out.png".to_string());
     eprintln!("Generating world");
     let world = random_world(&mut Rng::new(1));
     let look_from = Vec3::new(3.0, 2.0, 3.0);
@@ -70,7 +70,7 @@ fn main() -> ExitCode {
     let threads = thread::available_parallelism().map_or(1, |n| n.get());
     eprintln!("Rendering on {threads} threads");
     let img = render(WIDTH, HEIGHT, SAMPLES, &camera, &world);
-    if let Err(e) = img.save_ppm(&output) {
+    if let Err(e) = img.save_png(&output) {
         eprintln!("Writing {output}: {e}");
         return ExitCode::FAILURE;
     }

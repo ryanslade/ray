@@ -1,6 +1,6 @@
 # Uses the toolchain pinned in rust-toolchain.toml.
 
-OUT ?= out.ppm
+OUT ?= out.png
 
 help:
 	@echo "make build    builds it"

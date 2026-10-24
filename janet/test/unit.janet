@@ -56,3 +56,66 @@
 (let [ppm (image/to-ppm (image/new 3 2))]
   (assert (string/has-prefix? "P6\n3 2\n255\n" ppm))
   (assert (= (length ppm) (+ 11 (* 3 2 3)))))
+
+(defn uint32-be [buf pos]
+  (+ (* 16777216 (buf pos)) (* 65536 (buf (+ pos 1)))
+     (* 256 (buf (+ pos 2))) (buf (+ pos 3))))
+
+(defn uint16-le [buf pos]
+  (+ (buf pos) (* 256 (buf (+ pos 1)))))
+
+(defn png-chunks
+  "Splits a PNG into its chunks, as [type data] pairs."
+  [png]
+  (def chunks @[])
+  (var pos 8)
+  (while (< pos (length png))
+    (def len (uint32-be png pos))
+    (array/push chunks [(string/slice png (+ pos 4) (+ pos 8))
+                        (string/slice png (+ pos 8) (+ pos 8 len))])
+    (+= pos (+ 12 len)))
+  chunks)
+
+(defn inflate-stored
+  "Decodes a zlib stream made of stored deflate blocks, the only kind
+  image/to-png writes."
+  [z]
+  (def out @"")
+  (var pos 2)
+  (forever
+    (def header (z pos))
+    (assert (zero? (band (brshift header 1) 3)) "expected a stored block")
+    (def len (uint16-le z (+ pos 1)))
+    (assert (= (uint16-le z (+ pos 3)) (- 65535 len)) "NLEN")
+    (buffer/push out (string/slice z (+ pos 5) (+ pos 5 len)))
+    (+= pos (+ 5 len))
+    (when (odd? header) (break)))
+  out)
+
+# Big enough for the pixel data to need more than one stored block.
+(let [width 200
+      height 120
+      img (image/new width height)]
+  (for y 0 height
+    (for x 0 width
+      (image/set-pixel img x y [(/ x width) (/ y height) (/ (% (+ x y) 7) 7)])))
+  (def png (image/to-png img))
+  (assert (string/has-prefix? "\x89PNG\r\n\x1a\n" png))
+  # IEND's CRC is the same in every PNG, which checks the CRC code.
+  (assert (string/has-suffix? "\0\0\0\0IEND\xAE\x42\x60\x82" png))
+  (def chunks (png-chunks png))
+  (assert (deep= (map first chunks) @["IHDR" "IDAT" "IEND"]))
+  (def [[_ header] [_ data]] chunks)
+  (assert (= (uint32-be header 0) width))
+  (assert (= (uint32-be header 4) height))
+  (assert (= (string/slice header 8) "\x08\x02\0\0\0") "8-bit RGB")
+  (def raw (inflate-stored data))
+  (def row-bytes (+ 1 (* 3 width)))
+  (assert (= (length raw) (* row-bytes height)))
+  (for y 0 height
+    (assert (zero? (raw (* y row-bytes))) "no filter")
+    (for x 0 width
+      (def i (+ (* y row-bytes) 1 (* 3 x)))
+      (assert (deep= [(raw i) (raw (+ i 1)) (raw (+ i 2))]
+                     (image/get-pixel img x y))
+              (string/format "pixel (%d, %d)" x y)))))

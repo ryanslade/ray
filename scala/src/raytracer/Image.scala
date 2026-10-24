@@ -1,7 +1,10 @@
 package raytracer
 
+import java.awt.image.BufferedImage
+import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets.US_ASCII
 import java.nio.file.{Files, Path}
+import javax.imageio.ImageIO
 
 /** An 8-bit RGB image. Row 0 is the top. */
 final class Image(val width: Int, val height: Int):
@@ -19,6 +22,19 @@ final class Image(val width: Int, val height: Int):
   def toPpm: Array[Byte] = s"P6\n$width $height\n255\n".getBytes(US_ASCII) ++ pixels
 
   def savePpm(path: String): Unit = Files.write(Path.of(path), toPpm)
+
+  /** The image as a java.awt `BufferedImage`, for encoding with `ImageIO`. */
+  def toBufferedImage: BufferedImage =
+    val rgb = Array.tabulate(width * height) { i =>
+      val j = 3 * i
+      (pixels(j) & 0xff) << 16 | (pixels(j + 1) & 0xff) << 8 | pixels(j + 2) & 0xff
+    }
+    val bi = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
+    bi.setRGB(0, 0, width, height, rgb, 0, width)
+    bi
+
+  def savePng(path: String): Unit =
+    if !ImageIO.write(toBufferedImage, "png", File(path)) then throw IOException("no PNG encoder")
 
   override def equals(other: Any): Boolean = other match
     case o: Image =>

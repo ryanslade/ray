@@ -1,6 +1,6 @@
 # Needs Zig 0.16.
 
-OUT ?= out.ppm
+OUT ?= out.png
 
 help:
 	@echo "make build    builds it"

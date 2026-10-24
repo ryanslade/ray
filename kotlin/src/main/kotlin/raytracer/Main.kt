@@ -37,7 +37,7 @@ private fun randomWorld(rng: Rng): World {
 }
 
 fun main(args: Array<String>) {
-    val output = args.firstOrNull() ?: "out.ppm"
+    val output = args.firstOrNull() ?: "out.png"
     System.err.println("Generating world")
     val world = randomWorld(Rng(1))
     val lookFrom = Vec3(3.0, 2.0, 3.0)
@@ -57,7 +57,7 @@ fun main(args: Array<String>) {
     System.err.println("Rendering on ${Runtime.getRuntime().availableProcessors()} threads")
     val img = render(WIDTH, HEIGHT, SAMPLES, camera, world)
     try {
-        img.savePpm(output)
+        img.savePng(output)
     } catch (e: IOException) {
         System.err.println("Writing $output: ${e.message}")
         exitProcess(1)

@@ -1,6 +1,6 @@
 # Needs Janet >= 1.41.
 
-OUT ?= out.ppm
+OUT ?= out.png
 
 help:
 	@echo "make build    builds it"

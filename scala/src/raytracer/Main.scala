@@ -36,7 +36,7 @@ object Main:
     World(Seq(ground) ++ smallSpheres ++ largeSpheres)
 
   def main(args: Array[String]): Unit =
-    val output = args.headOption.getOrElse("out.ppm")
+    val output = args.headOption.getOrElse("out.png")
     System.err.println("Generating world")
     val world = randomWorld(Rng(1))
     val lookFrom = Vec3(3, 2, 3)
@@ -54,7 +54,7 @@ object Main:
     )
     System.err.println(s"Rendering on ${Runtime.getRuntime.availableProcessors} threads")
     val img = render(Width, Height, Samples, camera, world)
-    try img.savePpm(output)
+    try img.savePng(output)
     catch
       case e: IOException =>
         System.err.println(s"Writing $output: ${e.getMessage}")

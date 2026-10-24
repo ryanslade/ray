@@ -87,10 +87,20 @@
       (is (= 0x000000 (bit-and (.getRGB bi 0 0) 0xffffff)))
       (is (= 0xff7f00 (bit-and (.getRGB bi 1 0) 0xffffff))))))
 
-(deftest jpeg-round-trip
-  (let [f (java.io.File/createTempFile "raytracer" ".jpg")]
+(deftest png-round-trip
+  (let [img (image/image 4 3)
+        f (java.io.File/createTempFile "raytracer" ".png")]
+    (doseq [y (range 3), x (range 4)]
+      (image/set-pixel! img x y (v/vec3 (/ x 4.0) (/ y 3.0) (/ (mod (+ x y) 7) 7.0))))
     (try
-      (image/save-jpeg (image/image 4 3) f)
+      (image/save-png img f)
       (let [bi (javax.imageio.ImageIO/read (io/file f))]
-        (is (= [4 3] [(.getWidth bi) (.getHeight bi)])))
+        (is (= [4 3] [(.getWidth bi) (.getHeight bi)]))
+        ;; PNG is lossless, so every pixel comes back unchanged.
+        (doseq [y (range 3), x (range 4)
+                :let [rgb (.getRGB bi x y)]]
+          (is (= (image/pixel img x y)
+                 [(bit-and (bit-shift-right rgb 16) 0xff)
+                  (bit-and (bit-shift-right rgb 8) 0xff)
+                  (bit-and rgb 0xff)]))))
       (finally (.delete f)))))

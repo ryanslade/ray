@@ -1,6 +1,6 @@
 # Needs SBCL.
 
-OUT ?= out.ppm
+OUT ?= out.png
 SBCL := sbcl --noinform --non-interactive --no-sysinit --no-userinit --load build.lisp
 
 help:

@@ -89,3 +89,18 @@ class UnitTest extends munit.FunSuite:
     assertEquals(String(ppm, 0, 11, "US-ASCII"), "P6\n3 2\n255\n")
     assertEquals(ppm.length, 11 + 3 * 2 * 3)
   }
+
+  test("png round trip") {
+    val img = Image(4, 3)
+    for y <- 0 until 3; x <- 0 until 4 do img(x, y) = Color(x / 4.0, y / 3.0, (x + y) % 7 / 7.0)
+    val f = java.io.File.createTempFile("raytracer", ".png")
+    try
+      img.savePng(f.getPath)
+      val bi = javax.imageio.ImageIO.read(f)
+      assertEquals((bi.getWidth, bi.getHeight), (4, 3))
+      // PNG is lossless, so every pixel comes back unchanged.
+      for y <- 0 until 3; x <- 0 until 4 do
+        val rgb = bi.getRGB(x, y)
+        assertEquals((rgb >> 16 & 0xff, rgb >> 8 & 0xff, rgb & 0xff), img(x, y))
+    finally f.delete()
+  }

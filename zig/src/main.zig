@@ -43,7 +43,7 @@ fn randomWorld(gpa: std.mem.Allocator, rng: *Rng) ![]Sphere {
 pub fn main(init: std.process.Init) !void {
     const arena = init.arena.allocator();
     const args = try init.minimal.args.toSlice(arena);
-    const output = if (args.len > 1) args[1] else "out.ppm";
+    const output = if (args.len > 1) args[1] else "out.png";
 
     std.debug.print("Generating world\n", .{});
     var rng: Rng = .init(1);
@@ -62,7 +62,7 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("Rendering on {d} threads\n", .{rt.defaultThreads()});
     const img = try rt.render(init.gpa, width, height, samples, camera, world);
     defer img.deinit(init.gpa);
-    img.savePpm(init.io, output) catch |err| {
+    img.savePng(init.gpa, init.io, output) catch |err| {
         std.debug.print("Writing {s}: {t}\n", .{ output, err });
         std.process.exit(1);
     };

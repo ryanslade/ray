@@ -1,5 +1,7 @@
 package raytracer
 
+import java.io.File
+import javax.imageio.ImageIO
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -114,5 +116,28 @@ class UnitTest {
         val ppm = Image(3, 2).toPpm()
         assertEquals("P6\n3 2\n255\n", String(ppm, 0, 11, Charsets.US_ASCII))
         assertEquals(11 + 3 * 2 * 3, ppm.size)
+    }
+
+    @Test
+    fun pngRoundTrip() {
+        val img = Image(4, 3)
+        for (y in 0..<3) {
+            for (x in 0..<4) img.set(x, y, Color(x / 4.0, y / 3.0, (x + y) % 7 / 7.0))
+        }
+        val f = File.createTempFile("raytracer", ".png")
+        try {
+            img.savePng(f.path)
+            val bi = ImageIO.read(f)
+            assertEquals(4 to 3, bi.width to bi.height)
+            // PNG is lossless, so every pixel comes back unchanged.
+            for (y in 0..<3) {
+                for (x in 0..<4) {
+                    val rgb = bi.getRGB(x, y)
+                    assertEquals(img.get(x, y), Triple(rgb shr 16 and 0xff, rgb shr 8 and 0xff, rgb and 0xff))
+                }
+            }
+        } finally {
+            f.delete()
+        }
     }
 }

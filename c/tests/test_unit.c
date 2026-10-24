@@ -162,6 +162,82 @@ static void test_ppm_header(void) {
     image_free(&img);
 }
 
+static uint32_t get_u32_be(const uint8_t *p) {
+    return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3];
+}
+
+static unsigned get_u16_le(const uint8_t *p) { return p[0] | (unsigned)p[1] << 8; }
+
+/* Decodes a zlib stream made of stored deflate blocks, the only kind
+ * image_write_png writes, into `out`. Returns the decoded length, or 0 if the
+ * stream is malformed or doesn't fit. */
+static size_t inflate_stored(const uint8_t *z, size_t len, uint8_t *out, size_t cap) {
+    size_t pos = 2, n = 0;
+    for (;;) {
+        if (pos + 5 > len || (z[pos] >> 1 & 3) != 0) {
+            return 0;
+        }
+        unsigned block = get_u16_le(&z[pos + 1]);
+        if (get_u16_le(&z[pos + 3]) != (~block & 0xFFFF) || pos + 5 + block > len ||
+            n + block > cap) {
+            return 0;
+        }
+        memcpy(&out[n], &z[pos + 5], block);
+        n += block;
+        bool last = z[pos] & 1;
+        pos += 5 + block;
+        if (last) {
+            return n;
+        }
+    }
+}
+
+static void test_png(void) {
+    /* Big enough for the pixel data to need more than one stored block. */
+    enum { W = 200, H = 120, ROW_BYTES = 1 + W * 3 };
+    Image img;
+    CHECK(image_init(&img, W, H));
+    for (size_t y = 0; y < H; y++) {
+        for (size_t x = 0; x < W; x++) {
+            image_set(&img, x, y, color((double)x / W, (double)y / H, (double)((x + y) % 7) / 7));
+        }
+    }
+    static uint8_t png[256 * 1024];
+    FILE *f = tmpfile();
+    CHECK(f != NULL);
+    if (f == NULL) {
+        image_free(&img);
+        return;
+    }
+    CHECK(image_write_png(&img, f));
+    rewind(f);
+    size_t len = fread(png, 1, sizeof png, f);
+    fclose(f);
+
+    CHECK(len > 8 + 25 + 12 + 12 && len < sizeof png);
+    CHECK(memcmp(png, "\x89PNG\r\n\x1a\n", 8) == 0);
+    /* IHDR, then IDAT, then IEND. */
+    CHECK(get_u32_be(&png[8]) == 13);
+    CHECK(memcmp(&png[12], "IHDR", 4) == 0);
+    CHECK(get_u32_be(&png[16]) == W);
+    CHECK(get_u32_be(&png[20]) == H);
+    CHECK(memcmp(&png[24], (uint8_t[]){8, 2, 0, 0, 0}, 5) == 0);
+    size_t data_len = get_u32_be(&png[33]);
+    CHECK(memcmp(&png[37], "IDAT", 4) == 0);
+    CHECK(41 + data_len + 4 + 12 == len);
+    /* IEND's CRC is the same in every PNG, which checks the CRC code. */
+    CHECK(memcmp(&png[len - 12], "\0\0\0\0IEND\xae\x42\x60\x82", 12) == 0);
+
+    static uint8_t raw[ROW_BYTES * H];
+    size_t n = data_len <= len - 41 ? inflate_stored(&png[41], data_len, raw, sizeof raw) : 0;
+    CHECK(n == sizeof raw);
+    for (size_t y = 0; y < H && n == sizeof raw; y++) {
+        CHECK(raw[y * ROW_BYTES] == 0);
+        CHECK(memcmp(&raw[y * ROW_BYTES + 1], image_row(&img, y), W * 3) == 0);
+    }
+    image_free(&img);
+}
+
 int main(void) {
     RUN_TEST(test_vec3_arithmetic);
     RUN_TEST(test_rng_floats_in_unit_interval);
@@ -174,5 +250,6 @@ int main(void) {
     RUN_TEST(test_metal_fuzz_is_clamped);
     RUN_TEST(test_image_set_clamps);
     RUN_TEST(test_ppm_header);
+    RUN_TEST(test_png);
     return CHECK_EXIT();
 }

@@ -22,7 +22,7 @@
 
 (defun save-executable (path)
   "Saves an executable that renders the example scene to its argument, or to
-out.ppm."
+out.png."
   (ensure-directories-exist path)
   (sb-ext:save-lisp-and-die
    path

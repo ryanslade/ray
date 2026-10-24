@@ -1,6 +1,6 @@
 # Needs Elixir >= 1.18 on Erlang/OTP >= 28.
 
-OUT ?= out.ppm
+OUT ?= out.png
 
 help:
 	@echo "make build    builds it"

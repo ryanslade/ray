@@ -1,7 +1,7 @@
 # Needs Java >= 17 to run Gradle, which downloads Java 25 if it isn't
 # installed.
 
-OUT ?= out.ppm
+OUT ?= out.png
 
 help:
 	@echo "make build    builds it"

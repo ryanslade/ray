@@ -18,7 +18,7 @@ else
 BUILD := build/release
 endif
 
-OUT ?= out.ppm
+OUT ?= out.png
 
 LIB_OBJS := $(patsubst %.c,$(BUILD)/obj/%.o,$(filter-out src/main.c,$(wildcard src/*.c)))
 SCENE_OBJ := $(BUILD)/obj/tests/scene.o

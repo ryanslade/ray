@@ -46,7 +46,7 @@ static World random_world(Sphere spheres[MAX_SPHERES],
 }
 
 int main(int argc, char **argv) {
-    const char *output = argc > 1 ? argv[1] : "out.ppm";
+    const char *output = argc > 1 ? argv[1] : "out.png";
 
     fprintf(stderr, "Generating world\n");
     static Sphere spheres[MAX_SPHERES];
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Rendering: %s\n", strerror(errno));
         return EXIT_FAILURE;
     }
-    bool saved = image_save_ppm(&img, output);
+    bool saved = image_save_png(&img, output);
     int err = errno;
     image_free(&img);
     if (!saved) {

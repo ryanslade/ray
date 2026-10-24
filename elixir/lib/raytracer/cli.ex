@@ -1,5 +1,5 @@
 defmodule Raytracer.CLI do
-  @moduledoc "Renders the example scene: `raytracer [output.ppm]`."
+  @moduledoc "Renders the example scene: `raytracer [output.png]`."
 
   alias Raytracer.{Camera, Image, Material, Render, Rng, Sphere, Vec3, World}
 
@@ -8,7 +8,7 @@ defmodule Raytracer.CLI do
   @samples 100
 
   def main(args) do
-    output = List.first(args, "out.ppm")
+    output = List.first(args, "out.png")
     IO.puts(:stderr, "Generating world")
     world = random_world(Rng.new(1))
     look_from = {3.0, 2.0, 3.0}
@@ -28,7 +28,7 @@ defmodule Raytracer.CLI do
     IO.puts(:stderr, "Rendering on #{System.schedulers_online()} schedulers")
     img = Render.render(@width, @height, @samples, camera, world)
 
-    case Image.save_ppm(img, output) do
+    case Image.save_png(img, output) do
       :ok ->
         IO.puts(:stderr, "Wrote #{output}")
 

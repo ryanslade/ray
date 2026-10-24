@@ -83,6 +83,6 @@
     (doto (BufferedImage. w h BufferedImage/TYPE_INT_RGB)
       (.setRGB 0 0 w h rgb 0 w))))
 
-(defn save-jpeg [^Image img path]
-  (when-not (ImageIO/write (to-buffered-image img) "jpg" (io/file path))
-    (throw (java.io.IOException. "no JPEG encoder"))))
+(defn save-png [^Image img path]
+  (when-not (ImageIO/write (to-buffered-image img) "png" (io/file path))
+    (throw (java.io.IOException. "no PNG encoder"))))

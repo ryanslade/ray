@@ -1,6 +1,6 @@
 # Needs Java >= 25 and the Clojure CLI.
 
-OUT ?= out.jpg
+OUT ?= out.png
 
 help:
 	@echo "make build    builds it"

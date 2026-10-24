@@ -1,7 +1,7 @@
 package main
 
 import (
-	"image/jpeg"
+	"image/png"
 	"log"
 	"math/rand"
 	"os"
@@ -89,12 +89,12 @@ func main() {
 	camera := ray.NewCamera(lookFrom, lookAt, vUp, 90, float64(nx)/float64(ny), aperture, distToFocus)
 
 	img := ray.Render(nx, ny, ns, camera, world)
-	f, err := os.Create("out.jpg")
+	f, err := os.Create("out.png")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
-	err = jpeg.Encode(f, img, nil)
+	err = png.Encode(f, img)
 	if err != nil {
 		log.Fatal(err)
 	}

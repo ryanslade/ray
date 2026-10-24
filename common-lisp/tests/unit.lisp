@@ -114,3 +114,70 @@
     (check (string= (format nil "P6~%3 2~%255~%")
                     (map 'string #'code-char (subseq ppm 0 11))))
     (check (= (+ 11 (* 3 2 3)) (length ppm)))))
+
+(defun u32-at (bytes pos)
+  (logior (ash (aref bytes pos) 24) (ash (aref bytes (+ pos 1)) 16)
+          (ash (aref bytes (+ pos 2)) 8) (aref bytes (+ pos 3))))
+
+(defun u16le-at (bytes pos)
+  (logior (aref bytes pos) (ash (aref bytes (+ pos 1)) 8)))
+
+(defun png-chunks (png)
+  "Splits a PNG into its chunks, as (type . data) pairs."
+  (loop with pos = 8
+        while (< pos (length png))
+        collect (let ((len (u32-at png pos)))
+                  (prog1 (cons (map 'string #'code-char (subseq png (+ pos 4) (+ pos 8)))
+                               (subseq png (+ pos 8) (+ pos 8 len)))
+                    (incf pos (+ 12 len))))))
+
+(defun inflate-stored (z)
+  "Decodes a zlib stream made of stored deflate blocks, the only kind TO-PNG
+writes."
+  (let ((out (make-array 0 :element-type '(unsigned-byte 8) :adjustable t
+                           :fill-pointer 0))
+        (pos 2))
+    (loop
+      (let ((header (aref z pos))
+            (len (u16le-at z (+ pos 1))))
+        (unless (zerop (ldb (byte 2 1) header))
+          (error "Expected a stored block."))
+        (unless (= (u16le-at z (+ pos 3)) (- 65535 len))
+          (error "Bad NLEN."))
+        (loop for i from (+ pos 5) below (+ pos 5 len)
+              do (vector-push-extend (aref z i) out))
+        (incf pos (+ 5 len))
+        (when (logbitp 0 header)
+          (return out))))))
+
+(deftest png
+  ;; Big enough for the pixel data to need more than one stored block.
+  (let* ((width 200)
+         (height 120)
+         (img (make-image width height)))
+    (dotimes (y height)
+      (dotimes (x width)
+        (set-pixel img x y (vec3 (/ x (float width 1d0))
+                                 (/ y (float height 1d0))
+                                 (/ (mod (+ x y) 7) 7d0)))))
+    (let* ((png (to-png img))
+           (chunks (png-chunks png)))
+      (check (equalp #(#x89 80 78 71 13 10 26 10) (subseq png 0 8)))
+      ;; IEND's CRC is the same in every PNG, which checks the CRC code.
+      (check (equalp #(0 0 0 0 73 69 78 68 #xAE #x42 #x60 #x82)
+                     (subseq png (- (length png) 12))))
+      (check (equal '("IHDR" "IDAT" "IEND") (mapcar #'car chunks)))
+      (let ((header (cdr (first chunks)))
+            (raw (inflate-stored (cdr (second chunks))))
+            (row-bytes (1+ (* 3 width))))
+        (check (= width (u32-at header 0)))
+        (check (= height (u32-at header 4)))
+        (check (equalp #(8 2 0 0 0) (subseq header 8)) "8-bit RGB")
+        (check (= (* row-bytes height) (length raw)))
+        (dotimes (y height)
+          (check (zerop (aref raw (* y row-bytes))) "no filter")
+          (dotimes (x width)
+            (let ((i (+ (* y row-bytes) 1 (* 3 x))))
+              (check (equal (pixel img x y)
+                            (list (aref raw i) (aref raw (+ i 1)) (aref raw (+ i 2))))
+                     (format nil "pixel (~D, ~D)" x y)))))))))

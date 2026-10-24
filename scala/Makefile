@@ -1,6 +1,6 @@
 # Needs only curl: ./mill downloads Mill, which downloads Java 25.
 
-OUT ?= out.ppm
+OUT ?= out.png
 
 help:
 	@echo "make build    builds it"

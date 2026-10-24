@@ -15,7 +15,7 @@
    #:sphere #:sphere-hit #:make-world #:world-hit #:make-camera
    ;; Images
    #:make-image #:image-width #:image-height #:set-pixel #:pixel #:to-ppm
-   #:save-ppm
+   #:save-ppm #:to-png #:save-png
    ;; Rendering
    #:render #:render-with-threads #:ray-color #:cpu-count
    #:use-large-nursery #:main))

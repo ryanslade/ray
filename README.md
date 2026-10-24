@@ -33,14 +33,14 @@ cd rust      # or go, ocaml, zig, c, janet, clojure, kotlin, scala, common-lisp,
              # elixir, metal
 make build   # builds it
 make test    # runs the tests
-make example # renders the example scene to out.ppm, or another path with OUT=
+make example # renders the example scene to out.png, or another path with OUT=
 make clean   # removes the build output
 ```
 
 Running `make` by itself lists the targets.
 
-The Go example writes `example/out.jpg` instead, the OCaml example writes
-`out.png` and the Clojure example writes `out.jpg`. On arm64, the Go port's
+The Go example writes `example/out.png` instead (Go's Makefile has no `OUT=`),
+and the Metal example still writes a PPM, `out.ppm`. On arm64, the Go port's
 `make example GOEXPERIMENT=simd` tests spheres two at a time with NEON, which
 makes the example scene about 1.35x faster.
 
