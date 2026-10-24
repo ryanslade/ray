@@ -16,3 +16,9 @@ val to_ppm : t -> string
 (** Binary (P6) PPM encoding. *)
 
 val save_ppm : t -> string -> unit
+
+val to_png : t -> string
+(** PNG encoding. The pixel data is stored uncompressed, so the file is about
+    the same size as the PPM. *)
+
+val save_png : t -> string -> unit

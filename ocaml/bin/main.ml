@@ -43,7 +43,7 @@ let random_world st =
   World.of_list ((ground :: small_spheres) @ large_spheres)
 
 let () =
-  let output = if Array.length Sys.argv > 1 then Sys.argv.(1) else "out.ppm" in
+  let output = if Array.length Sys.argv > 1 then Sys.argv.(1) else "out.png" in
   prerr_endline "Generating world";
   let world = random_world (Random.State.make [| 1 |]) in
   let look_from = Vec3.make 3. 2. 3. and look_at = Vec3.make 0. 0. (-1.) in
@@ -56,5 +56,5 @@ let () =
   Printf.eprintf "Rendering on %d domains\n%!"
     (Domain.recommended_domain_count ());
   let img = Render.render ~width ~height ~samples camera world in
-  Image.save_ppm img output;
+  Image.save_png img output;
   Printf.eprintf "Wrote %s\n" output

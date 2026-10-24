@@ -252,6 +252,83 @@ let test_ppm_header () =
     (String.starts_with ~prefix:"P6\n3 2\n255\n" ppm);
   Alcotest.(check int) "length" (11 + (3 * 2 * 3)) (String.length ppm)
 
+(* Splits a PNG into its chunks, as (type, data) pairs. *)
+let png_chunks png =
+  let int32 pos = Int32.to_int (String.get_int32_be png pos) land 0xFFFFFFFF in
+  let rec go pos =
+    if pos >= String.length png then []
+    else
+      let len = int32 pos in
+      (String.sub png (pos + 4) 4, String.sub png (pos + 8) len)
+      :: go (pos + 12 + len)
+  in
+  go 8
+
+(* Decodes a zlib stream made of stored deflate blocks, the only kind
+   [Image.to_png] writes. *)
+let inflate_stored z =
+  let buf = Buffer.create (String.length z) in
+  let rec go pos =
+    let header = Char.code z.[pos] in
+    if (header lsr 1) land 3 <> 0 then Alcotest.fail "expected a stored block";
+    let len = String.get_uint16_le z (pos + 1) in
+    Alcotest.(check int)
+      "NLEN"
+      (lnot len land 0xFFFF)
+      (String.get_uint16_le z (pos + 3));
+    Buffer.add_string buf (String.sub z (pos + 5) len);
+    if header land 1 = 0 then go (pos + 5 + len)
+  in
+  go 2;
+  Buffer.contents buf
+
+let test_png () =
+  (* Big enough for the pixel data to need more than one stored block. *)
+  let width = 200 and height = 120 in
+  let img = Image.create ~width ~height in
+  for y = 0 to height - 1 do
+    for x = 0 to width - 1 do
+      Image.set img ~x ~y
+        (Color.make
+           (Float.of_int x /. Float.of_int width)
+           (Float.of_int y /. Float.of_int height)
+           (Float.of_int ((x + y) mod 7) /. 7.))
+    done
+  done;
+  let png = Image.to_png img in
+  Alcotest.(check string) "signature" "\x89PNG\r\n\x1a\n" (String.sub png 0 8);
+  match png_chunks png with
+  | [ ("IHDR", header); ("IDAT", data); ("IEND", "") ] ->
+      Alcotest.(check int)
+        "width" width
+        (Int32.to_int (String.get_int32_be header 0));
+      Alcotest.(check int)
+        "height" height
+        (Int32.to_int (String.get_int32_be header 4));
+      Alcotest.(check string)
+        "8-bit RGB" "\x08\x02\x00\x00\x00" (String.sub header 8 5);
+      (* IEND's CRC is the same in every PNG, which checks the CRC code. *)
+      Alcotest.(check string)
+        "IEND" "\x00\x00\x00\x00IEND\xae\x42\x60\x82"
+        (String.sub png (String.length png - 12) 12);
+      let raw = inflate_stored data in
+      let row_bytes = 1 + (width * 3) in
+      Alcotest.(check int)
+        "data length" (row_bytes * height) (String.length raw);
+      for y = 0 to height - 1 do
+        Alcotest.(check char) "no filter" '\000' raw.[y * row_bytes];
+        for x = 0 to width - 1 do
+          let channel j = Char.code raw.[(y * row_bytes) + 1 + (x * 3) + j] in
+          Alcotest.check rgb
+            (Printf.sprintf "pixel (%d, %d)" x y)
+            (Image.get img ~x ~y)
+            (channel 0, channel 1, channel 2)
+        done
+      done
+  | chunks ->
+      Alcotest.failf "unexpected chunks: %s"
+        (String.concat ", " (List.map fst chunks))
+
 let test_camera () =
   let look_from = Vec3.make 1. 1. 1. and look_at = Vec3.make 0. 0. (-1.) in
   let camera =
@@ -362,6 +439,7 @@ let () =
         [
           Alcotest.test_case "set clamps" `Quick test_image_set_clamps;
           Alcotest.test_case "PPM header" `Quick test_ppm_header;
+          Alcotest.test_case "PNG" `Quick test_png;
         ] );
       ("camera", [ Alcotest.test_case "rays" `Quick test_camera ]);
       ( "render",

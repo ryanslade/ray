@@ -1,7 +1,7 @@
 go/example/example
 go/example/out.jpg
 ocaml/_build/
-ocaml/out.ppm
+ocaml/out.png
 ocaml/*.install
 rust/target/
 rust/out.ppm

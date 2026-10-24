@@ -1,6 +1,6 @@
 # Needs OCaml >= 5.5: `opam install . --deps-only --with-test`.
 
-OUT ?= out.ppm
+OUT ?= out.png
 
 help:
 	@echo "make build    builds it"
@@ -12,7 +12,7 @@ build:
 	dune build --release
 
 test:
-	dune test
+	dune test --force
 
 # Renders the example scene to $(OUT).
 example:
