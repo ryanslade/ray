@@ -174,10 +174,12 @@
 (test-case "building a scene checks its arguments"
   ;; The rendering code is compiled without checks, so values must be checked
   ;; on the way in.
+  (define-syntax-rule (check-rejected e ...)
+    (begin (check-exn exn:fail:contract? (λ () e)) ...))
   (define m (dielectric 1.5))
-  (check-exn exn:fail:contract? (λ () (sphere (vec3 0.0 0.0 0.0) 'big m)))
-  (check-exn exn:fail:contract? (λ () (sphere (vector 0 0 0) 1.0 m)))
-  (check-exn exn:fail:contract? (λ () (sphere (vec3 0.0 0.0 0.0) 1.0 white)))
-  (check-exn exn:fail:contract? (λ () (lambertian 0.5)))
-  (check-exn exn:fail:contract? (λ () (make-world (list m))))
-  (check-exn exn:fail:contract? (λ () (render/threads 0 1 1 1 #f #f))))
+  (check-rejected (sphere (vec3 0.0 0.0 0.0) 'big m)
+                  (sphere (vector 0 0 0) 1.0 m)
+                  (sphere (vec3 0.0 0.0 0.0) 1.0 white)
+                  (lambertian 0.5)
+                  (make-world (list m))
+                  (render/threads 0 1 1 1 #f #f)))

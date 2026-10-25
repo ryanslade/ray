@@ -2,7 +2,7 @@
 
 ;; 8-bit RGB images. Row 0 is the top.
 
-(require file/gzip racket/fixnum racket/flonum "vec3.rkt")
+(require file/gzip racket/fixnum racket/flonum (only-in "lang.rkt" flo) "vec3.rkt")
 
 (provide make-image image-width image-height image-pixels write-color!
          set-pixel! pixel image->ppm save-ppm image->png save-png crc32 adler32)
@@ -16,8 +16,8 @@
 (define (write-color! pixels i c)
   (define (to-byte c)
     ;; Written so that NaN becomes 255, as in the Rust version.
-    (define b (fl* 255.99 (if (fl< c 1.0) c 1.0)))
-    (if (fl> b 0.0) (fl->fx b) 0))
+    (define b (flo (* 255.99 (if (< c 1) c 1))))
+    (if (flo (> b 0)) (fl->fx b) 0))
   (bytes-set! pixels i (to-byte (vx c)))
   (bytes-set! pixels (+ i 1) (to-byte (vy c)))
   (bytes-set! pixels (+ i 2) (to-byte (vz c))))

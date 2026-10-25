@@ -1,172 +1,137 @@
-#lang racket/base
+#lang s-exp "lang.rkt"
 
 ;; Vectors of three flonums, also used for colours (as r, g and b).
 
-;; Compiled without the checks on primitive operations, such as that flonum
-;; operations get flonums and that indices are in bounds; see the README.
-(#%declare #:unsafe)
+(require "rng.rkt")
 
-(require (for-syntax racket/base) racket/flonum racket/performance-hint "rng.rkt")
-
-(provide vec3 vec3? vx vy vz v+ v- v* v/ vscale vneg dot cross vlength unit
-         zero black white random-in-unit-sphere random-in-unit-disk)
+(provide vec3 vec3? vx vy vz define-xyz v+ v- v* v/ vscale vneg vset! dot cross vlength
+         unit zero black white random-in-unit-sphere random-in-unit-disk)
 
 ;; A vector is an flvector, which holds its elements unboxed, so a vector is a
 ;; single allocation, where a structure would also allocate each of its
 ;; flonums. Calling flvector would box its arguments, though, so vectors are
 ;; made empty and then filled in.
-;;
-;; The arithmetic is written with two arguments to each operation, in the
-;; same order as the other versions, so that the results round the same way.
 
 (define (vec3? v)
   (and (flvector? v) (= (flvector-length v) 3)))
-
-(define-syntax-rule (make-vec3 x y z)
-  (let ([v (make-flvector 3)])
-    (flvector-set! v 0 x)
-    (flvector-set! v 1 y)
-    (flvector-set! v 2 z)
-    v))
 
 ;; Inlined, so that the components aren't boxed to be returned.
 (define-inline (vx v) (flvector-ref v 0))
 (define-inline (vy v) (flvector-ref v 1))
 (define-inline (vz v) (flvector-ref v 2))
 
+;; Defines x, y and z as v's components. Separate definitions, since flonums
+;; bound with define-values are boxed.
+(define-syntax-rule (define-xyz (x y z) v)
+  (begin (define t v) (define x (vx t)) (define y (vy t)) (define z (vz t))))
+
 ;; As procedures, the operations would allocate every vector they return, even
 ;; one that is only an argument to another operation, as in
-;; (v- (v+ a (vscale s b)) c). So the operations are macros that expand such
-;; nested expressions into a single vector, each component computed from the
+;; (v- (v+ a (vscale s b)) c). So they are macros that expand such nested
+;; expressions into a single vector, each component computed from the
 ;; operands' components with the same arithmetic in the same order, so only
 ;; the result is allocated. Operands that aren't vector operations are still
 ;; evaluated once each, in their original order. Used as values rather than
 ;; called, the operations are ordinary procedures.
 
 (begin-for-syntax
-  ;; The name of the vector operation that form applies, or #f.
-  (define (fusible-op form)
-    (syntax-case form ()
-      [(head . _)
-       (identifier? #'head)
-       (for/first ([op (in-list (list #'vec3 #'v+ #'v- #'v* #'v/ #'vscale #'vneg))]
-                   #:when (free-identifier=? #'head op))
-         (syntax-e op))]
-      [_ #f]))
+  ;; A vector operation, bound as its own macro. kinds says whether each
+  ;; operand is a vector or a scalar, and component makes the result's
+  ;; component on an axis from the operands' components on that axis (a
+  ;; scalar's components are all itself).
+  (struct vector-op (kinds component proc)
+    #:property prop:procedure
+    (λ (op stx)
+      (if (identifier? stx)
+          (vector-op-proc op)
+          #`(let ([v (make-flvector 3)]) (vset! v #,stx) v))))
 
   ;; Three expressions computing the components of the vector expression
   ;; form. bind! binds an operand to a variable, which it returns.
   (define (components form bind!)
-    (define (scalar e) (if (flonum? (syntax-e e)) e (bind! e)))
-    (define (each op as bs)
-      (map (λ (a b) (quasisyntax/loc form (#,op #,a #,b))) as bs))
-    (syntax-case form ()
-      [(_ x y z)
-       (eq? (fusible-op form) 'vec3)
-       (let* ([x (scalar #'x)] [y (scalar #'y)] [z (scalar #'z)])
-         (list x y z))]
-      [(_ a b)
-       (memq (fusible-op form) '(v+ v- v*))
-       (let* ([as (components #'a bind!)]
-              [bs (components #'b bind!)])
-         (each (case (fusible-op form) [(v+) #'fl+] [(v-) #'fl-] [(v*) #'fl*]) as bs))]
-      [(_ v s)
-       (eq? (fusible-op form) 'v/)
-       (let* ([vs (components #'v bind!)]
-              [s (scalar #'s)])
-         (each #'fl/ vs (list s s s)))]
-      [(_ s v)
-       (eq? (fusible-op form) 'vscale)
-       (let* ([s (scalar #'s)]
-              [vs (components #'v bind!)])
-         (each #'fl* (list s s s) vs))]
-      [(_ v)
-       (eq? (fusible-op form) 'vneg)
-       (map (λ (c) #`(fl- #,c)) (components #'v bind!))]
-      [_
-       (let ([v (bind! form)])
-         (list #`(flvector-ref #,v 0) #`(flvector-ref #,v 1) #`(flvector-ref #,v 2)))]))
+    (define op (syntax-case form ()
+                 [(head . _) (identifier? #'head) (syntax-local-value #'head (λ () #f))]
+                 [_ #f]))
+    (define operands (if (vector-op? op) (cdr (syntax->list form)) '()))
+    (cond
+      [(not (vector-op? op))
+       (define v (bind! form))
+       (for/list ([axis 3]) #`(flvector-ref #,v #,axis))]
+      [(not (= (length operands) (length (vector-op-kinds op))))
+       (raise-syntax-error #f "wrong number of operands" form)]
+      [else
+       (define cs
+         (for/list ([kind (in-list (vector-op-kinds op))] [e (in-list operands)])
+           (if (eq? kind 'vector)
+               (components e bind!)
+               (let ([s (if (real? (syntax-e e))
+                            (datum->syntax e (exact->inexact (syntax-e e)))
+                            (bind! e))])
+                 (list s s s)))))
+       (for/list ([axis 3])
+         (apply (vector-op-component op) axis (map (λ (c) (list-ref c axis)) cs)))])))
 
-  ;; An expression that binds the operands of the vector expressions forms
-  ;; and passes their components to finish, which makes the result.
-  (define (fuse forms finish)
-    (define bindings '())
-    (define (bind! e)
-      (define var (car (generate-temporaries '(v))))
-      (set! bindings (cons #`[#,var #,e] bindings))
-      var)
-    ;; Components binds the operands as it goes, so this is a let*.
-    (define result (apply finish (for/list ([form (in-list forms)])
-                                   (components form bind!))))
-    #`(let* #,(reverse bindings) #,result)))
+;; Stores the vector expression e in the vector dest without allocating.
+;; Each component of e only depends on its operands' components on the same
+;; axis, so dest can be one of them.
+(define-syntax (vset! stx)
+  (syntax-case stx ()
+    [(_ dest e)
+     (let* ([bindings '()]
+            [cs (components #'e (λ (e)
+                                  (define var (car (generate-temporaries '(v))))
+                                  (set! bindings (cons #`[#,var #,e] bindings))
+                                  var))])
+       ;; components binds the operands as it goes, so this is a let*.
+       #`(let* ([d dest] #,@(reverse bindings))
+           #,@(for/list ([c (in-list cs)] [axis (in-naturals)])
+                #`(flvector-set! d #,axis #,c))))]))
 
-;; Defines name as a vector operation that fuses with the vector operations
-;; in its operands, and proc as the same operation as a procedure.
-(define-syntax-rule (define-fused name proc (arg ...))
+;; Defines name as a vector operation, whose component on each axis is the
+;; flo expression body of the operands' components, and as a procedure.
+(define-syntax-rule (define-vector-op (name [operand kind] ...) body)
   (begin
-    (define-syntax (name stx)
-      (syntax-case stx ()
-        [id (identifier? #'id) #'proc]
-        [(_ arg ...) (fuse (list stx) (λ (cs) #`(make-vec3 #,@cs)))]))
-    (define (proc arg ...) (name arg ...))))
+    (define-syntax name
+      (vector-op '(kind ...)
+                 (λ (axis operand ...)
+                   (with-syntax ([operand operand] ...) #'(flo body)))
+                 #'proc))
+    (define (proc operand ...) (name operand ...))))
 
-(define-fused vec3 vec3/proc (x y z))
-(define-fused v+ v+/proc (a b))
-(define-fused v- v-/proc (a b))
+(define-vector-op (v+ [a vector] [b vector]) (+ a b))
+(define-vector-op (v- [a vector] [b vector]) (- a b))
 ;; Component-wise multiplication.
-(define-fused v* v*/proc (a b))
-(define-fused v/ v//proc (v s))
+(define-vector-op (v* [a vector] [b vector]) (* a b))
+(define-vector-op (v/ [v vector] [s scalar]) (/ v s))
 ;; v multiplied by the scalar s.
-(define-fused vscale vscale/proc (s v))
-(define-fused vneg vneg/proc (v))
+(define-vector-op (vscale [s scalar] [v vector]) (* s v))
+(define-vector-op (vneg [v vector]) (- v))
 
-(define-syntax (dot stx)
-  (syntax-case stx ()
-    [id (identifier? #'id) #'dot/proc]
-    [(_ a b)
-     (fuse (list #'a #'b)
-           (λ (as bs)
-             (with-syntax ([(ax ay az) as] [(bx by bz) bs])
-               #'(fl+ (fl+ (fl* ax bx) (fl* ay by)) (fl* az bz)))))]))
-(define (dot/proc a b) (dot a b))
+(define-syntax vec3
+  (vector-op '(scalar scalar scalar) (λ (axis . xyz) (list-ref xyz axis)) #'vec3/proc))
+(define (vec3/proc x y z) (vec3 x y z))
 
-(define-syntax (vlength stx)
-  (syntax-case stx ()
-    [id (identifier? #'id) #'vlength/proc]
-    [(_ v) #'(let ([t v]) (flsqrt (dot t t)))]))
-(define (vlength/proc v) (vlength v))
-
-(define-syntax (unit stx)
-  (syntax-case stx ()
-    [id (identifier? #'id) #'unit/proc]
-    [(_ v) #'(let ([t v]) (v/ t (vlength t)))]))
-(define (unit/proc v) (unit v))
+(define-inline (dot a b)
+  (flo (+ (* (vx a) (vx b)) (* (vy a) (vy b)) (* (vz a) (vz b)))))
+(define-inline (vlength v) (flsqrt (dot v v)))
+(define-inline (unit v) (v/ v (vlength v)))
 
 (define (cross a b)
-  (vec3 (fl- (fl* (vy a) (vz b)) (fl* (vz a) (vy b)))
-        (fl- (fl* (vz a) (vx b)) (fl* (vx a) (vz b)))
-        (fl- (fl* (vx a) (vy b)) (fl* (vy a) (vx b)))))
+  (vec3 (flo (- (* (vy a) (vz b)) (* (vz a) (vy b))))
+        (flo (- (* (vz a) (vx b)) (* (vx a) (vz b))))
+        (flo (- (* (vx a) (vy b)) (* (vy a) (vx b))))))
 
-(define zero (vec3 0.0 0.0 0.0))
+(define zero (vec3 0 0 0))
 (define black zero)
-(define white (vec3 1.0 1.0 1.0))
+(define white (vec3 1 1 1))
 
-(define-inline (random-coord rng)
-  (fl- (fl* 2.0 (next-f64 rng)) 1.0))
+;; Defines name as rejection sampling: picking a point in the cube or square
+;; with coordinates (c ...) until one lands inside the unit sphere or disk,
+;; which it returns as v.
+(define-syntax-rule (define-random-in-unit (name rng) (c ...) v)
+  (define (name rng)
+    (let* ([c (flo (- (* 2 (next-f64 rng)) 1))] ...)
+      (if (flo (< (+ (* c c) ...) 1)) v (name rng)))))
 
-;; Rejection sampling: picks points in the enclosing cube until one lands
-;; inside.
-(define (random-in-unit-sphere rng)
-  (let* ([x (random-coord rng)]
-         [y (random-coord rng)]
-         [z (random-coord rng)])
-    (if (fl< (fl+ (fl+ (fl* x x) (fl* y y)) (fl* z z)) 1.0)
-        (vec3 x y z)
-        (random-in-unit-sphere rng))))
-
-(define (random-in-unit-disk rng)
-  (let* ([x (random-coord rng)]
-         [y (random-coord rng)])
-    (if (fl< (fl+ (fl* x x) (fl* y y)) 1.0)
-        (vec3 x y 0.0)
-        (random-in-unit-disk rng))))
+(define-random-in-unit (random-in-unit-sphere rng) (x y z) (vec3 x y z))
+(define-random-in-unit (random-in-unit-disk rng) (x y) (vec3 x y 0))

@@ -1,10 +1,6 @@
-#lang racket/base
+#lang s-exp "lang.rkt"
 
-;; Compiled without the checks on primitive operations, such as that flonum
-;; operations get flonums and that indices are in bounds; see the README.
-(#%declare #:unsafe)
-
-(require racket/flonum "vec3.rkt")
+(require "vec3.rkt")
 
 (provide (struct-out ray) ray-at (struct-out hit) max-distance)
 

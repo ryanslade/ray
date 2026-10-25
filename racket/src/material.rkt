@@ -1,10 +1,6 @@
-#lang racket/base
+#lang s-exp "lang.rkt"
 
-;; Compiled without the checks on primitive operations, such as that flonum
-;; operations get flonums and that indices are in bounds; see the README.
-(#%declare #:unsafe)
-
-(require racket/contract/base racket/flonum "ray.rkt" "rng.rkt" "vec3.rkt")
+(require "ray.rkt" "rng.rkt" "vec3.rkt")
 
 (provide (contract-out [lambertian (-> vec3? lambertian?)]
                        [metal (-> vec3? real? metal?)]
@@ -19,7 +15,7 @@
 (struct metal (albedo fuzz)
   #:authentic
   #:guard (λ (albedo fuzz name)
-            (values albedo (flmax 0.0 (flmin (real->double-flonum fuzz) 1.0)))))
+            (values albedo (flo (max 0 (min (real->double-flonum fuzz) 1))))))
 
 (struct dielectric (ref-index)
   #:authentic
@@ -29,27 +25,24 @@
   (or (lambertian? v) (metal? v) (dielectric? v)))
 
 (define (reflect v n)
-  (v- v (vscale (fl* 2.0 (dot v n)) n)))
+  (v- v (vscale (flo (* 2 (dot v n))) n)))
 
 ;; The refracted ray's direction, or #f on total internal reflection.
 (define (refract v n ni-over-nt)
   (define uv (unit v))
   (define dt (dot uv n))
-  (define discriminant
-    (fl- 1.0 (fl* (fl* ni-over-nt ni-over-nt) (fl- 1.0 (fl* dt dt)))))
-  (and (fl> discriminant 0.0)
-       (v- (vscale ni-over-nt (v- uv (vscale dt n)))
-           (vscale (flsqrt discriminant) n))))
+  (define discriminant (flo (- 1 (* (* ni-over-nt ni-over-nt) (- 1 (* dt dt))))))
+  (and (flo (> discriminant 0))
+       (v- (vscale ni-over-nt (v- uv (vscale dt n))) (vscale (flsqrt discriminant) n))))
 
-;; Schlick's approximation for reflectance at a given angle.
+;; Schlick's approximation for reflectance at a given angle, multiplied out
+;; rather than using flexpt, to match the other versions' golden image.
 (define (schlick cosine ref-index)
-  (let* ([r0 (fl/ (fl- 1.0 ref-index) (fl+ 1.0 ref-index))]
-         [r0 (fl* r0 r0)]
-         ;; Multiplied out rather than using flexpt, to match the other
-         ;; versions' golden image.
-         [x (fl- 1.0 cosine)]
-         [x2 (fl* x x)])
-    (fl+ r0 (fl* (fl* (fl* (fl- 1.0 r0) x2) x2) x))))
+  (let* ([r0 (flo (/ (- 1 ref-index) (+ 1 ref-index)))]
+         [r0 (flo (* r0 r0))]
+         [x (flo (- 1 cosine))]
+         [x2 (flo (* x x))])
+    (flo (+ r0 (* (- 1 r0) x2 x2 x)))))
 
 ;; Two values: the scattered ray and the colour it is multiplied by, or #f and
 ;; #f if the ray is absorbed.
@@ -64,25 +57,23 @@
      (define reflected (reflect (unit (ray-direction ray-in)) normal))
      (define direction
        (v+ reflected (vscale (metal-fuzz material) (random-in-unit-sphere rng))))
-     (if (fl> (dot direction normal) 0.0)
+     (if (flo (> (dot direction normal) 0))
          (values (ray point direction) (metal-albedo material))
          (values #f #f))]
     [else
      (define ref-index (dielectric-ref-index material))
      (define d (ray-direction ray-in))
      (define d-dot-n (dot d normal))
-     (define outside (fl> d-dot-n 0.0))
+     (define outside (flo (> d-dot-n 0)))
      (define refracted
        (if outside
            (refract d (vneg normal) ref-index)
-           (refract d normal (fl/ 1.0 ref-index))))
+           (refract d normal (flo (/ 1 ref-index)))))
      (define cosine
-       (if outside
-           (fl/ (fl* ref-index d-dot-n) (vlength d))
-           (fl/ (fl- d-dot-n) (vlength d))))
+       (flo (/ (if outside (* ref-index d-dot-n) (- d-dot-n)) (vlength d))))
      (values (ray point
                   ;; Only draws a random number when the ray can refract.
-                  (if (and refracted (fl>= (next-f64 rng) (schlick cosine ref-index)))
+                  (if (and refracted (flo (>= (next-f64 rng) (schlick cosine ref-index))))
                       refracted
                       (reflect d normal)))
              white)]))

@@ -1,10 +1,6 @@
-#lang racket/base
+#lang s-exp "lang.rkt"
 
-;; Compiled without the checks on primitive operations, such as that flonum
-;; operations get flonums and that indices are in bounds; see the README.
-(#%declare #:unsafe)
-
-(require racket/contract/base racket/flonum "material.rkt" "ray.rkt" "vec3.rkt")
+(require "material.rkt" "ray.rkt" "vec3.rkt")
 
 (provide (contract-out [sphere (-> vec3? real? material? sphere?)])
          sphere? sphere-center sphere-radius sphere-material
@@ -22,17 +18,15 @@
   (define oc (v- (ray-origin r) (sphere-center s)))
   (define a (dot direction direction))
   (define b (dot oc direction))
-  (define c (fl- (dot oc oc) (fl* (sphere-radius s) (sphere-radius s))))
-  (define discriminant (fl- (fl* b b) (fl* a c)))
-  (define (in-range? distance)
-    (and (fl< distance t-max) (fl> distance t-min)))
-  (and (not (fl< discriminant 0.0))
+  (define c (flo (- (dot oc oc) (* (sphere-radius s) (sphere-radius s)))))
+  (define discriminant (flo (- (* b b) (* a c))))
+  (and (flo (>= discriminant 0))
        (let* ([sqrt-d (flsqrt discriminant)]
-              [near (fl/ (fl- (fl- b) sqrt-d) a)])
-         (if (in-range? near)
-             near
-             (let ([far (fl/ (fl+ (fl- b) sqrt-d) a)])
-               (and (in-range? far) far))))))
+              [near (flo (/ (- (- b) sqrt-d) a))]
+              [far (flo (/ (+ (- b) sqrt-d) a))])
+         (cond [(flo (< t-min near t-max)) near]
+               [(flo (< t-min far t-max)) far]
+               [else #f]))))
 
 ;; The hit record for a distance returned by sphere-intersect.
 (define (sphere-hit-at s r distance)

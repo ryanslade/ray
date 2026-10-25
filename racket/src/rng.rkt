@@ -1,13 +1,7 @@
-#lang racket/base
+#lang s-exp "lang.rkt"
 
 ;; A small, fast pseudo-random number generator (SplitMix64), the same as the
 ;; other versions use, so that scenes and renders are identical.
-
-;; Compiled without the checks on primitive operations, such as that flonum
-;; operations get flonums and that indices are in bounds; see the README.
-(#%declare #:unsafe)
-
-(require racket/contract/base racket/fixnum racket/flonum racket/performance-hint)
 
 (provide (contract-out [make-rng (-> exact-integer? any)]) next-u64 next-f64)
 

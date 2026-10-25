@@ -2,7 +2,7 @@
 
 ;; Renders the example scene to its argument, or to out.png.
 
-(require racket/fixnum racket/flonum racket/future "src/raytracer.rkt")
+(require racket/fixnum racket/future (only-in "src/lang.rkt" flo) "src/raytracer.rkt")
 
 (define width 800)
 (define height 450)
@@ -11,11 +11,11 @@
 ;; A small sphere in the grid square at (a, b), or #f if it would be too close
 ;; to the metal sphere.
 (define (small-sphere rng a b)
-  (let* ([x (fl+ a (fl* 0.9 (next-f64 rng)))]
-         [z (fl+ b (fl* 0.9 (next-f64 rng)))]
+  (let* ([x (flo (+ a (* 0.9 (next-f64 rng))))]
+         [z (flo (+ b (* 0.9 (next-f64 rng))))]
          [center (vec3 x 0.2 z)])
-    (and (fl> (vlength (v- center (vec3 4.0 0.2 0.0))) 0.9)
-         (let ([channel (λ () (fl* (next-f64 rng) (next-f64 rng)))])
+    (and (flo (> (vlength (v- center (vec3 4.0 0.2 0.0))) 0.9))
+         (let ([channel (λ () (flo (* (next-f64 rng) (next-f64 rng))))])
            ;; Arguments are evaluated left to right, so the channels draw from
            ;; the generator in order.
            (sphere center 0.2 (lambertian (vec3 (channel) (channel) (channel))))))))
@@ -42,7 +42,7 @@
                               #:look-at look-at
                               #:v-up (vec3 0.0 1.0 0.0)
                               #:vfov 90
-                              #:aspect (fl/ (fx->fl width) (fx->fl height))
+                              #:aspect (/ width height)
                               #:aperture 0.01
                               #:focus-dist (vlength (v- look-from look-at))))
   (define threads (processor-count))

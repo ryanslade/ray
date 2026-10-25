@@ -254,31 +254,38 @@ escript, which runs anywhere Erlang is installed.
 
 The Racket port runs on Racket CS, which compiles to native code through Chez
 Scheme, and its renders are byte-identical to Rust's too. Rows are rendered by
-futures, which run in parallel on OS threads, taking rows from a counter
-updated with `box-cas!`. Racket CS keeps a flonum unboxed while it is in a
-local variable or an flvector, but allocates one that is returned from a
-procedure, stored in a structure or passed from one iteration of a loop to the
-next, and every garbage collection stops all the futures: on ten threads,
-collections first took a third of the time. So vectors are flvectors, which
-hold their components unboxed, filled in with `flvector-set!`, since the
-`flvector` constructor boxes its arguments. The vector operations are macros
-that fuse nested expressions into a single allocation, like the Common Lisp
-port's compiler macros. `next-f64` is inlined, getting its random bits from a
-call as a fixnum, and the closest-hit loop and the per-pixel sums keep their
-running flonums in flvectors. Together that cut allocation by three quarters
-and made the test scene about 2.5x faster on ten threads. Fixnums have 61 bits,
-so SplitMix64 keeps its state as two 32-bit halves like the Elixir port, and
-multiplies with `fx*/wraparound`, which wraps modulo 2^61 and so gets the low
-32 bits of a product exactly. The generator took half the time until its
-helpers were inlined into one straight-line procedure, which made a
-single-threaded render 1.3x faster. The modules on the rendering path are
-compiled with `(#%declare #:unsafe)`, which leaves out the checks that
-primitive operations get the types they expect and indices in bounds, and made
-a single-threaded render 1.7x faster. So that a mistake in building a scene
-raises an error rather than producing garbage, the procedures that build one
-and start a render check their arguments with contracts. The PNG is
-compressed with `deflate` from `file/gzip`. The tests use RackUnit, and
-`make build` builds an executable with `raco exe`.
+futures, which run in parallel on OS threads, taking rows from a counter updated
+with `box-cas!`. Racket CS keeps a flonum unboxed while it is in a local
+variable or an flvector, but allocates one that is returned from a procedure,
+stored in a structure or passed from one iteration of a loop to the next, and
+every garbage collection stops all the futures: on ten threads, collections
+first took a third of the time. So vectors are flvectors, which hold their
+components unboxed, filled in with `flvector-set!`, since the `flvector`
+constructor boxes its arguments. The vector operations are macros that fuse
+nested expressions into a single allocation, like the Common Lisp port's
+compiler macros. Each is declared by its formula for one component, as in
+`(define-vector-op (v+ [a vector] [b vector]) (+ a b))`, and its binding carries
+that formula, which the other operations find with `syntax-local-value` to fuse
+it. `next-f64` is inlined, getting its random bits from a call as a fixnum, and
+the closest-hit loop and the per-pixel sums keep their running flonums in
+flvectors. Together that cut allocation by three quarters and made the test
+scene about 2.5x faster on ten threads. Fixnums have 61 bits, so SplitMix64
+keeps its state as two 32-bit halves like the Elixir port, and multiplies with
+`fx*/wraparound`, which wraps modulo 2^61 and so gets the low 32 bits of a
+product exactly. The generator took half the time until its helpers were inlined
+into one straight-line procedure, which made a single-threaded render 1.3x
+faster. The modules on the rendering path are written in a small language of
+their own, `#lang s-exp "lang.rkt"`: racket/base with its flonum, fixnum and
+contract libraries and a `flo` macro, which turns `(+ (* ocx dx) (* ocy dy) (*
+ocz dz))` into the nested `fl+` and `fl*` calls, two operands at a time from the
+left, so that the arithmetic reads normally and still rounds as in the other
+versions. The language compiles them with `(#%declare #:unsafe)`, which leaves
+out the checks that primitive operations get the types they expect and indices
+in bounds, and made a single-threaded render 1.7x faster. So that a mistake in
+building a scene raises an error rather than producing garbage, the procedures
+that build one and start a render check their arguments with contracts. The PNG
+is compressed with `deflate` from `file/gzip`. The tests use RackUnit, and `make
+build` builds an executable with `raco exe`.
 
 The Metal version traces every pixel on its own GPU thread. The Swift host
 builds the scene and camera in double precision exactly as the other versions

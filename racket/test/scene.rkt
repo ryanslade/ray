@@ -2,7 +2,7 @@
 
 ;; The scene used by the tests and benchmark, matching the other versions.
 
-(require racket/fixnum racket/flonum "../src/raytracer.rkt")
+(require "../src/raytracer.rkt")
 
 (provide scene-world scene-camera)
 
@@ -19,6 +19,6 @@
                #:look-at look-at
                #:v-up (vec3 0.0 1.0 0.0)
                #:vfov 90
-               #:aspect (fl/ (fx->fl width) (fx->fl height))
+               #:aspect (/ width height)
                #:aperture 0.01
                #:focus-dist (vlength (v- look-from look-at))))
