@@ -31,3 +31,7 @@ common-lisp/tests/golden.actual.ppm
 elixir/_build/
 elixir/out.png
 elixir/test/golden.actual.ppm
+racket/build/
+racket/**/compiled/
+racket/out.png
+racket/test/golden.actual.ppm

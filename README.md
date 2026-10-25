@@ -1,5 +1,5 @@
 A simple ray tracer, implemented in Go, OCaml, Rust, Zig, C, Janet, Clojure,
-Kotlin, Scala, Common Lisp and Elixir, and on the GPU with Metal.
+Kotlin, Scala, Common Lisp, Elixir and Racket, and on the GPU with Metal.
 
 This project was based on the book, [Ray Tracing in One Weekend](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8)
 
@@ -17,6 +17,8 @@ This project was based on the book, [Ray Tracing in One Weekend](https://www.ama
   as well
 - [`elixir/`](elixir) — a port to Elixir, rendering rows in parallel BEAM
   processes, also byte-identical
+- [`racket/`](racket) — a port to Racket, rendering rows in parallel futures,
+  byte-identical as well
 - [`metal/`](metal) — a port to Metal compute shaders, driven from Swift, rendering
   every pixel on its own GPU thread
 
@@ -30,7 +32,7 @@ Each port has a Makefile with the same targets:
 
 ```sh
 cd rust      # or go, ocaml, zig, c, janet, clojure, kotlin, scala, common-lisp,
-             # elixir, metal
+             # elixir, racket, metal
 make build   # builds it
 make test    # runs the tests
 make example # renders the example scene to out.png, or another path with OUT=
@@ -59,6 +61,8 @@ Each port needs:
 - Scala: only curl, since `scala/mill` downloads Mill, which downloads Java 25
 - Common Lisp: SBCL 2.6, which includes ASDF
 - Elixir: Elixir >= 1.18 on Erlang/OTP >= 28
+- Racket: Racket CS >= 9.3, either the full distribution or minimal Racket with
+  `raco pkg install rackunit-lib compiler-lib`
 - Metal: macOS 15 and Swift 6
 
 The Metal shader is compiled when the program starts, so Xcode isn't needed,
@@ -68,19 +72,19 @@ when the Command Line Tools are selected.
 
 ## Performance
 
-All twelve implementations render the same random scene (about 480 spheres) at
+All thirteen implementations render the same random scene (about 480 spheres) at
 800x450 with 100 samples per pixel. The CPU versions split rows across all
 cores; the Metal version runs on the GPU.
 Measured on an Apple M1 Max (10 CPU cores, 32 GPU cores), Go 1.27.2, OCaml
 5.5.1 (no flambda), Rust 1.99.1, Zig 0.16.0, Apple clang 21.0.0, Janet 1.41.2,
 Clojure 1.12.6, Kotlin 2.4.21 and Scala 3.10.0 on OpenJDK 25.0.4, SBCL 2.6.9,
-Elixir 1.18.4 on Erlang/OTP 28.0, Swift 6.3.3 on macOS 26:
+Elixir 1.18.4 on Erlang/OTP 28.0, Racket 9.3 CS, Swift 6.3.3 on macOS 26:
 
-| Benchmark                                | Metal  | Zig    | C      | Rust  | Go    | Common Lisp | Kotlin | Scala | OCaml  | Clojure | Elixir | Janet  |
-| ---------------------------------------- | ------ | ------ | ------ | ----- | ----- | ----------- | ------ | ----- | ------ | ------- | ------ | ------ |
-| Example scene, 800x450, 100 spp (wall)   | 0.8 s  | 4.3 s  | 5.3 s  | 5.4 s | 7.9 s | 8.0 s       | 8.9 s  | 9.1 s | 13.4 s | 18.1 s  | 155 s  | 400 s  |
-| Example scene, 800x450, 100 spp (CPU)    | (GPU)  | 40 s   | 50 s   | 51 s  | 68 s  | 73 s        | 84 s   | 86 s  | 126 s  | 166 s   | 1422 s | 3871 s |
-| Test scene, 100x100, 50 spp (per render) | 3.3 ms | 4.9 ms | 5.2 ms | 5 ms  | 13 ms | 20 ms       | 8.9 ms | 10 ms | 21 ms  | 9.1 ms  | 133 ms | 455 ms |
+| Benchmark                                | Metal  | Zig    | C      | Rust  | Go    | Common Lisp | Kotlin | Scala | Racket | OCaml  | Clojure | Elixir | Janet  |
+| ---------------------------------------- | ------ | ------ | ------ | ----- | ----- | ----------- | ------ | ----- | ------ | ------ | ------- | ------ | ------ |
+| Example scene, 800x450, 100 spp (wall)   | 0.8 s  | 4.3 s  | 5.3 s  | 5.4 s | 7.9 s | 8.0 s       | 8.9 s  | 9.1 s | 13.2 s | 13.4 s | 18.1 s  | 155 s  | 400 s  |
+| Example scene, 800x450, 100 spp (CPU)    | (GPU)  | 40 s   | 50 s   | 51 s  | 68 s  | 73 s        | 84 s   | 86 s  | 114 s  | 126 s  | 166 s   | 1422 s | 3871 s |
+| Test scene, 100x100, 50 spp (per render) | 3.3 ms | 4.9 ms | 5.2 ms | 5 ms  | 13 ms | 20 ms       | 8.9 ms | 10 ms | 40 ms  | 21 ms  | 9.1 ms  | 133 ms | 455 ms |
 
 With `GOEXPERIMENT=simd`, the Go example scene takes 5.9 s (wall)
 and 50 s (CPU).
@@ -90,8 +94,8 @@ The test scene benchmark is `go test -bench Render` in `go/`,
 `zig build bench -Doptimize=ReleaseFast` in `zig/`, `make bench` in `c/`,
 `janet bench.janet` in `janet/`, `clojure -M:bench` in `clojure/`,
 `./gradlew bench` in `kotlin/`, `./mill bench` in `scala/`, `make bench` in
-`common-lisp/`, `mix bench` in `elixir/` and `swift run -c release bench` in
-`metal/`.
+`common-lisp/`, `mix bench` in `elixir/`, `make bench` in `racket/` and
+`swift run -c release bench` in `metal/`.
 
 The OCaml version allocates short-lived vectors throughout, where Go keeps
 them on the stack. In OCaml 5 every minor collection pauses all domains, so the
@@ -247,6 +251,34 @@ make one raises an error instead), which no render needs, but the test that
 NaN becomes 255 has nothing to test. The build treats compiler warnings as
 errors and CI checks formatting with `mix format`. `make build` builds an
 escript, which runs anywhere Erlang is installed.
+
+The Racket port runs on Racket CS, which compiles to native code through Chez
+Scheme, and its renders are byte-identical to Rust's too. Rows are rendered by
+futures, which run in parallel on OS threads, taking rows from a counter
+updated with `box-cas!`. Racket CS keeps a flonum unboxed while it is in a
+local variable or an flvector, but allocates one that is returned from a
+procedure, stored in a structure or passed from one iteration of a loop to the
+next, and every garbage collection stops all the futures: on ten threads,
+collections first took a third of the time. So vectors are flvectors, which
+hold their components unboxed, filled in with `flvector-set!`, since the
+`flvector` constructor boxes its arguments. The vector operations are macros
+that fuse nested expressions into a single allocation, like the Common Lisp
+port's compiler macros. `next-f64` is inlined, getting its random bits from a
+call as a fixnum, and the closest-hit loop and the per-pixel sums keep their
+running flonums in flvectors. Together that cut allocation by three quarters
+and made the test scene about 2.5x faster on ten threads. Fixnums have 61 bits,
+so SplitMix64 keeps its state as two 32-bit halves like the Elixir port, and
+multiplies with `fx*/wraparound`, which wraps modulo 2^61 and so gets the low
+32 bits of a product exactly. The generator took half the time until its
+helpers were inlined into one straight-line procedure, which made a
+single-threaded render 1.3x faster. The modules on the rendering path are
+compiled with `(#%declare #:unsafe)`, which leaves out the checks that
+primitive operations get the types they expect and indices in bounds, and made
+a single-threaded render 1.7x faster. So that a mistake in building a scene
+raises an error rather than producing garbage, the procedures that build one
+and start a render check their arguments with contracts. The PNG is
+compressed with `deflate` from `file/gzip`. The tests use RackUnit, and
+`make build` builds an executable with `raco exe`.
 
 The Metal version traces every pixel on its own GPU thread. The Swift host
 builds the scene and camera in double precision exactly as the other versions
