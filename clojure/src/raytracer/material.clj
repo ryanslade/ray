@@ -1,10 +1,7 @@
 (ns raytracer.material
-  (:require [raytracer.hit :as hit]
-            [raytracer.ray :as ray]
-            [raytracer.rng]
-            [raytracer.vec3 :as v])
-  (:import (raytracer.rng Rng)
-           (raytracer.vec3 Vec3)))
+  (:require [raytracer.ray :as ray]
+            [raytracer.rng :as rng]
+            [raytracer.vec3 :as v]))
 
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
@@ -14,12 +11,12 @@
   (scatter [m ray-in hit rng]
     "The scattered ray, or nil if the ray is absorbed."))
 
-(defn- reflect ^Vec3 [^Vec3 v ^Vec3 n]
+(defn- reflect [v n]
   (v/sub v (v/scale (* 2.0 (v/dot v n)) n)))
 
 (defn- refract
   "The refracted ray's direction, or nil on total internal reflection."
-  [^Vec3 v ^Vec3 n ^double ni-over-nt]
+  [v n ^double ni-over-nt]
   (let [uv (v/unit v)
         dt (v/dot uv n)
         discriminant (- 1.0 (* ni-over-nt ni-over-nt (- 1.0 (* dt dt))))]
@@ -38,42 +35,39 @@
         x2 (* x x)]
     (+ r0 (* (- 1.0 r0) x2 x2 x))))
 
-(defrecord Lambertian [^Vec3 albedo]
+(defrecord Lambertian [albedo]
   Material
   (attenuation [_] albedo)
   (scatter [_ _ hit rng]
-    (let [p (hit/point hit)
-          target (-> p (v/add (hit/normal hit)) (v/add (v/random-in-unit-sphere rng)))]
+    (let [p (:point hit)
+          target (-> p (v/add (:normal hit)) (v/add (v/random-in-unit-sphere rng)))]
       (ray/ray p (v/sub target p)))))
 
-(defrecord Metal [^Vec3 albedo ^double fuzz]
+(defrecord Metal [albedo ^double fuzz]
   Material
   (attenuation [_] albedo)
   (scatter [_ ray-in hit rng]
-    (let [normal (hit/normal hit)
-          reflected (reflect (v/unit (ray/direction ray-in)) normal)
-          direction (v/add reflected (v/scale fuzz (v/random-in-unit-sphere rng)))]
+    (let [normal (:normal hit)
+          direction (-> (v/unit (:direction ray-in)) (reflect normal)
+                        (v/add (v/scale fuzz (v/random-in-unit-sphere rng))))]
       (when (> (v/dot direction normal) 0.0)
-        (ray/ray (hit/point hit) direction)))))
+        (ray/ray (:point hit) direction)))))
 
 (defrecord Dielectric [^double ref-index]
   Material
   (attenuation [_] v/white)
   (scatter [_ ray-in hit rng]
-    (let [d (ray/direction ray-in)
-          normal (hit/normal hit)
+    (let [d (:direction ray-in)
+          normal (:normal hit)
           d-dot-n (v/dot d normal)
           outside? (> d-dot-n 0.0)
           refracted (if outside?
                       (refract d (v/neg normal) ref-index)
                       (refract d normal (/ 1.0 ref-index)))
-          cosine (if outside?
-                   (/ (* ref-index d-dot-n) (v/length d))
-                   (/ (- d-dot-n) (v/length d)))]
-      (ray/ray (hit/point hit)
-               ;; Only draws a random number when the ray can refract.
-               (if (and refracted
-                        (>= (.nextF64 ^Rng rng) (schlick cosine ref-index)))
+          cosine (/ (if outside? (* ref-index d-dot-n) (- d-dot-n)) (v/length d))]
+      (ray/ray (:point hit)
+                 ;; Only draws a random number when the ray can refract.
+               (if (and refracted (>= (rng/next-f64 rng) (schlick cosine ref-index)))
                  refracted
                  (reflect d normal))))))
 

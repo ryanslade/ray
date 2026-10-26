@@ -11,7 +11,7 @@
   (let [[width height] [40 30]
         cam (scene/camera width height)
         w (scene/world)
-        render #(render/render-with-threads % width height 8 cam w)
+        render #(seq (image/to-ppm (render/render-with-threads % width height 8 cam w)))
         expected (render 1)]
     (doseq [threads [2 4 7]]
       (is (= expected (render threads)) (str threads " threads")))))

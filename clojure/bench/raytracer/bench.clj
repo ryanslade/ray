@@ -1,6 +1,6 @@
 (ns raytracer.bench
   "Mirrors BenchmarkRender in the Go version: the test scene at 100x100 with
-  50 samples per pixel. Usage: clojure -M:fast:bench [iterations] [threads]"
+  50 samples per pixel. Usage: clojure -M:bench [iterations] [threads]"
   (:require [raytracer.render :as render]
             [raytracer.scene :as scene]))
 

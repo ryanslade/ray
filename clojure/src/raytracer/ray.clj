@@ -1,16 +1,18 @@
 (ns raytracer.ray
-  (:require [raytracer.vec3 :as v])
-  (:import (raytracer.vec3 Vec3)))
+  "Rays, and where they hit things."
+  (:require [raytracer.vec3 :as v]))
 
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
 
-(deftype Ray [^Vec3 origin ^Vec3 direction])
+(defrecord Ray [origin direction])
 
-(defn ray ^Ray [^Vec3 origin ^Vec3 direction] (Ray. origin direction))
+;; Unlike ->Ray, a function defined with defn is direct linked.
+(defn ray [origin direction] (Ray. origin direction))
 
-(defn origin ^Vec3 [^Ray r] (.-origin r))
-(defn direction ^Vec3 [^Ray r] (.-direction r))
+(defn at [^Ray r ^double t] (v/add (.-origin r) (v/scale t (.-direction r))))
 
-(defn at ^Vec3 [^Ray r ^double t]
-  (v/add (.-origin r) (v/scale t (.-direction r))))
+;; `material` is a raytracer.material/Material.
+(defrecord Hit [^double t point normal material])
+
+(defn hit [^double t point normal material] (Hit. t point normal material))

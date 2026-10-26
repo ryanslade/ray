@@ -1,7 +1,8 @@
 (ns raytracer.vec3
   "Vectors of three doubles, also used for colours (as r, g and b)."
-  (:require [raytracer.rng])
-  (:import (raytracer.rng Rng)))
+  {:clj-kondo/config '{:lint-as {raytracer.vec3/defop clojure.core/defn}}}
+  (:require [clojure.walk :as walk]
+            [raytracer.rng :as rng]))
 
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
@@ -26,27 +27,21 @@
 (defn y ^double [^Vec3 v] (.-y v))
 (defn z ^double [^Vec3 v] (.-z v))
 
-(defn add ^Vec3 [^Vec3 a ^Vec3 b]
-  (Vec3. (+ (.-x a) (.-x b)) (+ (.-y a) (.-y b)) (+ (.-z a) (.-z b))))
+(defmacro ^:private defop
+  "Defines a function returning the Vec3 whose components are `expr`, in which
+  each ^Vec3 argument stands for the matching component of that vector."
+  [name args expr]
+  (let [vecs (filter #(= 'Vec3 (:tag (meta %))) args)]
+    `(defn ~name ~(with-meta args {:tag 'Vec3})
+       (Vec3. ~@(for [field '[.-x .-y .-z]]
+                  (walk/postwalk-replace (zipmap vecs (map #(list field %) vecs)) expr))))))
 
-(defn sub ^Vec3 [^Vec3 a ^Vec3 b]
-  (Vec3. (- (.-x a) (.-x b)) (- (.-y a) (.-y b)) (- (.-z a) (.-z b))))
-
-(defn mul
-  "Component-wise multiplication."
-  ^Vec3 [^Vec3 a ^Vec3 b]
-  (Vec3. (* (.-x a) (.-x b)) (* (.-y a) (.-y b)) (* (.-z a) (.-z b))))
-
-(defn scale
-  "`v` multiplied by the scalar `s`."
-  ^Vec3 [^double s ^Vec3 v]
-  (Vec3. (* s (.-x v)) (* s (.-y v)) (* s (.-z v))))
-
-(defn div ^Vec3 [^Vec3 v ^double s]
-  (Vec3. (/ (.-x v) s) (/ (.-y v) s) (/ (.-z v) s)))
-
-(defn neg ^Vec3 [^Vec3 v]
-  (Vec3. (- (.-x v)) (- (.-y v)) (- (.-z v))))
+(defop add [^Vec3 a ^Vec3 b] (+ a b))
+(defop sub [^Vec3 a ^Vec3 b] (- a b))
+(defop mul [^Vec3 a ^Vec3 b] (* a b))
+(defop scale [^double s ^Vec3 v] (* s v))
+(defop div [^Vec3 v ^double s] (/ v s))
+(defop neg [^Vec3 v] (- v))
 
 (defn dot ^double [^Vec3 a ^Vec3 b]
   (+ (* (.-x a) (.-x b)) (* (.-y a) (.-y b)) (* (.-z a) (.-z b))))
@@ -56,26 +51,19 @@
          (- (* (.-z a) (.-x b)) (* (.-x a) (.-z b)))
          (- (* (.-x a) (.-y b)) (* (.-y a) (.-x b)))))
 
-(defn length-squared ^double [^Vec3 v] (dot v v))
+(defn length ^double [v] (Math/sqrt (dot v v)))
 
-(defn length ^double [^Vec3 v] (Math/sqrt (length-squared v)))
+(defn unit ^Vec3 [v] (div v (length v)))
 
-(defn unit ^Vec3 [^Vec3 v] (div v (length v)))
+(defn- coordinate ^double [rng] (- (* 2.0 (rng/next-f64 rng)) 1.0))
 
 (defn random-in-unit-sphere
   "Rejection sampling: pick points in the enclosing cube until one lands
   inside."
-  ^Vec3 [^Rng rng]
-  (let [x (- (* 2.0 (.nextF64 rng)) 1.0)
-        y (- (* 2.0 (.nextF64 rng)) 1.0)
-        z (- (* 2.0 (.nextF64 rng)) 1.0)]
-    (if (< (+ (* x x) (* y y) (* z z)) 1.0)
-      (Vec3. x y z)
-      (recur rng))))
+  ^Vec3 [rng]
+  (let [x (coordinate rng), y (coordinate rng), z (coordinate rng)]
+    (if (< (+ (* x x) (* y y) (* z z)) 1.0) (Vec3. x y z) (recur rng))))
 
-(defn random-in-unit-disk ^Vec3 [^Rng rng]
-  (let [x (- (* 2.0 (.nextF64 rng)) 1.0)
-        y (- (* 2.0 (.nextF64 rng)) 1.0)]
-    (if (< (+ (* x x) (* y y)) 1.0)
-      (Vec3. x y 0.0)
-      (recur rng))))
+(defn random-in-unit-disk ^Vec3 [rng]
+  (let [x (coordinate rng), y (coordinate rng)]
+    (if (< (+ (* x x) (* y y)) 1.0) (Vec3. x y 0.0) (recur rng))))

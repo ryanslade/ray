@@ -167,15 +167,21 @@ The Clojure port runs on the JVM, and its renders are byte-identical to Rust's
 too. Since Java 17 all floating point arithmetic is strict IEEE 754, so the same
 order of operations gives the same results; the camera's one tangent uses
 `StrictMath`, whose results don't depend on the JVM's intrinsics. Vectors are a
-`deftype` with primitive double fields rather than Clojure vectors, and the
-SplitMix64 generator is a `deftype` with a mutable long, behind an interface
-with primitive signatures. Every namespace warns on reflection and boxed maths,
-so the hot path has neither. Materials are records implementing a protocol, and
-a missed intersection returns NaN rather than nil, so the closest-hit loop
-works on unboxed doubles. Threads are futures taking rows from an atomic
-counter. Every alias in `deps.edn` turns on direct linking, which compiles calls
-between functions to static method calls that the JIT can inline; that makes
-the test scene about 1.8x faster. The example scene's time includes about a
+`deftype` with primitive double fields rather than Clojure vectors, and a
+`defop` macro writes each component-wise operation once, as in `(defop add
+[^Vec3 a ^Vec3 b] (+ a b))`, and expands it for x, y and z. The SplitMix64
+generator's state is a one-element long array, so the functions on it take and
+return primitives. Every namespace warns on reflection and boxed maths, so the
+hot path has neither. Rays, hits and materials are records, and a missed
+intersection returns NaN rather than nil, so the closest-hit loop works on
+unboxed doubles. Threads are futures taking rows from an atomic counter. Every
+alias in `deps.edn` turns on direct linking, which compiles calls between
+functions to static method calls that the JIT can inline; that makes the test
+scene about 1.8x faster. Direct linking doesn't reach the `->Ray` factory
+functions that records define, so rays and hits are made with plain `defn`
+constructors. The JIT is sensitive to small changes in the intersection test:
+testing `t-max` before `t-min` keeps it reliably fast, where the other order is
+about 15% slower in some runs. The example scene's time includes about a
 second of starting the JVM and compiling the Clojure source, and the benchmark
 warms up the JIT for three seconds before timing.
 

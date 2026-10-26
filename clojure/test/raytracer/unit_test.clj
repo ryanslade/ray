@@ -1,7 +1,6 @@
 (ns raytracer.unit-test
   (:require [clojure.java.io :as io]
             [clojure.test :refer [deftest is testing]]
-            [raytracer.hit :as hit]
             [raytracer.image :as image]
             [raytracer.material :as material]
             [raytracer.ray :as ray]
@@ -24,12 +23,12 @@
 
 (deftest rng-floats-in-unit-interval
   (let [r (rng/rng 1)]
-    (is (every? #(and (>= % 0.0) (< % 1.0)) (repeatedly 10000 #(.nextF64 r))))))
+    (is (every? #(and (>= % 0.0) (< % 1.0)) (repeatedly 10000 #(rng/next-f64 r))))))
 
 (deftest rng-same-seed-same-sequence
   (let [a (rng/rng 42)
         b (rng/rng 42)]
-    (is (= (repeatedly 100 #(.nextU64 a)) (repeatedly 100 #(.nextU64 b))))))
+    (is (= (repeatedly 100 #(rng/next-u64 a)) (repeatedly 100 #(rng/next-u64 b))))))
 
 (deftest sphere-hit
   (let [m (material/dielectric 1.5)
@@ -37,11 +36,11 @@
         towards (ray/ray v/zero (v/vec3 0.0 0.0 -1.0))
         h (sphere/hit s towards 0.0 ##Inf)]
     (is (some? h))
-    (is (== 0.5 (hit/t h)))
-    (is (= (v/vec3 0.0 0.0 1.0) (hit/normal h)))
-    (is (identical? m (hit/material h)))
+    (is (== 0.5 (:t h)))
+    (is (= (v/vec3 0.0 0.0 1.0) (:normal h)))
+    (is (identical? m (:material h)))
     (testing "far side"
-      (is (== 1.5 (hit/t (sphere/hit s towards 0.6 ##Inf)))))
+      (is (== 1.5 (:t (sphere/hit s towards 0.6 ##Inf)))))
     (is (nil? (sphere/hit s (ray/ray v/zero (v/vec3 0.0 1.0 0.0)) 0.0 ##Inf)))))
 
 (deftest world-closest-hit
@@ -49,7 +48,7 @@
         w (world/world [(sphere/sphere (v/vec3 0.0 0.0 -5.0) 1.0 m)
                         (sphere/sphere (v/vec3 0.0 0.0 -2.0) 0.5 m)])
         h (world/hit w (ray/ray v/zero (v/vec3 0.0 0.0 -1.0)) 0.0 ##Inf)]
-    (is (== 1.5 (hit/t h)))
+    (is (== 1.5 (:t h)))
     (is (nil? (world/hit w (ray/ray v/zero (v/vec3 0.0 1.0 0.0)) 0.0 ##Inf)))))
 
 (deftest total-internal-reflection
