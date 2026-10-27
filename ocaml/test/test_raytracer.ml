@@ -19,7 +19,7 @@ let color =
       && Float.abs (a.b -. b.b) < 1e-9)
 
 let rgb = Alcotest.(triple int int int)
-let glass = Material.dielectric 1.5
+let glass = Material.Dielectric 1.5
 
 let test_vec3 () =
   let a = Vec3.make 1. 2. 3. and b = Vec3.make 4. 5. 6. in
@@ -183,7 +183,7 @@ let test_metal_fuzz_is_clamped () =
   List.iter
     (fun (given, want) ->
       match Material.metal ~fuzz:given Color.white with
-      | Metal { fuzz; _ } ->
+      | Metal (_, fuzz) ->
           Alcotest.check float (Printf.sprintf "fuzz %g" given) want fuzz
       | Lambertian _ | Dielectric _ -> Alcotest.fail "expected metal")
     [ (2., 1.); (-1., 0.); (0.3, 0.3) ]
@@ -216,7 +216,7 @@ let test_lambertian_scatter () =
   let ray_in = { Ray.origin = Vec3.zero; direction = Vec3.make 1. (-1.) 0. } in
   for _ = 1 to 1000 do
     match
-      Material.scatter (Material.lambertian albedo) ray_in ~point ~normal st
+      Material.scatter (Material.Lambertian albedo) ray_in ~point ~normal st
     with
     | Some (attenuation, scattered) ->
         Alcotest.check color "attenuation" albedo attenuation;
@@ -336,12 +336,12 @@ let test_camera () =
       ~aspect:2. ~aperture:0. ~focus_dist:3.
   in
   let st = Random.State.make [| 1 |] in
-  let centre = Camera.get_ray camera 0.5 0.5 st in
+  let centre = camera 0.5 0.5 st in
   Alcotest.check vec3 "origin" look_from centre.origin;
   Alcotest.check vec3 "towards look_at"
     Vec3.(unit (look_at - look_from))
     (Vec3.unit centre.direction);
-  let top = Camera.get_ray camera 0.5 1. st in
+  let top = camera 0.5 1. st in
   let angle =
     Float.acos (Vec3.dot (Vec3.unit centre.direction) (Vec3.unit top.direction))
   in
@@ -387,9 +387,7 @@ let test_single_pixel () =
     Render.render ~domains:1 ~width:1 ~height:1 ~samples:4 camera
       Test_scene.world
   in
-  Alcotest.(check (pair int int))
-    "size" (1, 1)
-    (Image.width img, Image.height img)
+  Alcotest.(check (pair int int)) "size" (1, 1) (img.width, img.height)
 
 let test_rejects_no_domains () =
   let camera = Test_scene.camera ~width:4 ~height:2 in

@@ -22,7 +22,7 @@ lines, comments, tests or benchmarks.
 | [Kotlin](kotlin)              | JVM                                   |         8.9 s |           482 |
 | [Scala](scala)                | Scala 3 on the JVM                    |         9.1 s |           323 |
 | [Racket](racket)              | Racket CS, parallel futures           |        13.2 s |           522 |
-| [OCaml](ocaml)                | OCaml 5, parallel domains             |        13.4 s |           393 |
+| [OCaml](ocaml)                | OCaml 5, parallel domains             |        13.4 s |           297 |
 | [Clojure](clojure)            | JVM                                   |        18.1 s |           410 |
 | [Elixir](elixir)              | One BEAM process per row              |         155 s |           531 |
 | [Janet](janet)                | Bytecode interpreter, OS threads      |         400 s |           439 |

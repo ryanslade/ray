@@ -6,10 +6,10 @@ let world =
       Sphere.make
         (Vec3.make 0. (-100.5) (-1.))
         100.
-        (Material.lambertian (Color.make 0.5 0.5 0.5));
+        (Material.Lambertian (Color.make 0.5 0.5 0.5));
       Sphere.make (Vec3.make 0. 0. (-1.)) 1.
         (Material.metal ~fuzz:0.2 (Color.make 0.8 0.8 0.8));
-      Sphere.make (Vec3.make 1.5 0. (-1.)) 1. (Material.dielectric 1.5);
+      Sphere.make (Vec3.make 1.5 0. (-1.)) 1. (Material.Dielectric 1.5);
     ]
 
 let camera ~width ~height =
