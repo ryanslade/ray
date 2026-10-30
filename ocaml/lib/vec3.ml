@@ -19,15 +19,17 @@ let[@inline] cross a b =
 let[@inline] length_squared v = dot v v
 let[@inline] length v = sqrt (length_squared v)
 let[@inline] unit v = v / length v
+let[@inline] coord st = (2. *. Random.State.float st 1.) -. 1.
 
 (* Rejection sampling: pick points in the enclosing cube (or square, when [z] is
    false) until one lands inside. *)
 let rec random_in_unit ~z st =
-  let coord () = (2. *. Random.State.float st 1.) -. 1. in
-  let x = coord () in
-  let y = coord () in
-  let p = make x y (if z then coord () else 0.) in
-  if length_squared p < 1. then p else random_in_unit ~z st
+  let x = coord st in
+  let y = coord st in
+  let w = if z then coord st else 0. in
+  (* Only the point that's kept is allocated. *)
+  if (x *. x) +. (y *. y) +. (w *. w) < 1. then make x y w
+  else random_in_unit ~z st
 
 let random_in_unit_sphere st = random_in_unit ~z:true st
 let random_in_unit_disk st = random_in_unit ~z:false st

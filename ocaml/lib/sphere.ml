@@ -3,9 +3,8 @@ type t = { center : Vec3.t; radius : float; material : Material.t }
 let make center radius material = { center; radius; material }
 
 (* The nearest t in ([t_min], [t_max]) at which the ray meets the sphere, or nan
-   if there is none. It works on plain floats rather than vectors and options
-   so that, once inlined, it allocates nothing: it runs for every ray/sphere
-   pair. *)
+   if there is none. [World.hit] does the same arithmetic for many spheres at
+   once, and must stay in step with it. *)
 let[@inline] intersect s (ray : Ray.t) ~t_min ~t_max =
   let o = ray.origin and d = ray.direction in
   let ox = o.x -. s.center.x
