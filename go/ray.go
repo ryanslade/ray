@@ -393,10 +393,8 @@ func Render(width, height, samples int, camera Camera, world Hitter) image.Image
 	// Rows vary a lot in cost (sky is cheap, spheres are expensive), so
 	// goroutines take rows one at a time rather than a fixed block each.
 	var nextRow atomic.Int64
-	for g := 0; g < numCPU; g++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range numCPU {
+		wg.Go(func() {
 			scatterRay := &Ray{}
 			rec := &HitRecord{}
 			for {
@@ -407,9 +405,9 @@ func Render(width, height, samples int, camera Camera, world Hitter) image.Image
 				// Seed per row so output doesn't depend on which goroutine
 				// rendered it.
 				rnd := rand.New(rand.NewSource(1 + int64(i)))
-				for j := 0; j < width; j++ {
+				for j := range width {
 					var c Color
-					for s := 0; s < samples; s++ {
+					for range samples {
 						u := (float64(j) + rnd.Float64()) / float64(width)
 						v := (float64(height-1-i) + rnd.Float64()) / float64(height)
 						r := camera.GetRay(u, v, rnd)
@@ -425,7 +423,7 @@ func Render(width, height, samples int, camera Camera, world Hitter) image.Image
 					img.Set(j, i, clr)
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	return img
