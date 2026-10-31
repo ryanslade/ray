@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>A simple ray tracer based on Ray Tracing in One Weekend</Description>
+    <Authors>Ryan Slade</Authors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Rng.fs" />
+    <Compile Include="Vec3.fs" />
+    <Compile Include="Ray.fs" />
+    <Compile Include="Camera.fs" />
+    <Compile Include="Material.fs" />
+    <Compile Include="Sphere.fs" />
+    <Compile Include="World.fs" />
+    <Compile Include="Image.fs" />
+    <Compile Include="Render.fs" />
+  </ItemGroup>
+
+</Project>

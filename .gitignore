@@ -45,3 +45,6 @@ haskell/test/golden.actual.ppm
 csharp/artifacts/
 csharp/out.png
 csharp/test/Raytracer.Tests/golden.actual.ppm
+fsharp/artifacts/
+fsharp/out.png
+fsharp/test/Raytracer.Tests/golden.actual.ppm
