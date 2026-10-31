@@ -1,0 +1,9 @@
+{application, raytracer, [
+    {description, "A simple ray tracer based on Ray Tracing in One Weekend"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {applications, [kernel, stdlib]},
+    {env, []},
+    {licenses, []},
+    {links, []}
+]}.

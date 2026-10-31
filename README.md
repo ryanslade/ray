@@ -1,6 +1,6 @@
 A simple ray tracer based on
 [Ray Tracing in One Weekend](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8),
-ported to twelve languages and to the GPU.
+ported to thirteen languages and to the GPU.
 
 ![Sample](/go/sample/sample.png "Sample")
 
@@ -25,6 +25,7 @@ lines, comments, tests or benchmarks.
 | [OCaml](ocaml)                | OCaml 5, parallel domains             |        13.4 s |           297 |
 | [Clojure](clojure)            | JVM                                   |        18.1 s |           434 |
 | [Elixir](elixir)              | One BEAM process per row              |         155 s |           531 |
+| [Erlang](erlang)              | A pool of one process per core        |         160 s |           586 |
 | [Janet](janet)                | Bytecode interpreter, OS threads      |         400 s |           439 |
 
 Apart from Go, OCaml, Janet and Metal, every port's renders are byte-identical

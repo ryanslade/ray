@@ -228,6 +228,32 @@ jobs:
       # Checks the benchmark builds and runs (one iteration in one process).
       - run: mix bench 1 1
 
+  erlang:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: erlang
+    steps:
+      - uses: actions/checkout@v7
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28"
+          rebar3-version: "3.25"
+      # erlfmt, and Dialyzer's analysis of OTP, which takes a few minutes.
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/rebar3
+            erlang/_build/default/plugins
+          key: erlang-28-${{ hashFiles('erlang/rebar.config') }}
+      - run: rebar3 fmt --check
+      # Compiles with warnings as errors, and runs the tests.
+      - run: rebar3 eunit
+      - run: rebar3 dialyzer
+      - run: rebar3 escriptize
+      # Checks the benchmark builds and runs (one iteration in one process).
+      - run: make bench ARGS="1 1"
+
   racket:
     runs-on: ubuntu-latest
     defaults:

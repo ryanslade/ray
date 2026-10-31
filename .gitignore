@@ -35,3 +35,6 @@ racket/build/
 racket/**/compiled/
 racket/out.png
 racket/test/golden.actual.ppm
+erlang/_build/
+erlang/out.png
+erlang/test/golden.actual.ppm
