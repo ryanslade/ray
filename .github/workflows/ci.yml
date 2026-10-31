@@ -281,7 +281,8 @@ jobs:
           path: ${{ steps.setup.outputs.cabal-store }}
           key: haskell-9.14.1-${{ hashFiles('haskell/raytracer.cabal') }}
       # Treats compiler warnings as errors.
-      - run: printf 'package raytracer\n  ghc-options: -Werror\n' > cabal.project.local
+      - run: |
+          printf 'package raytracer\n  ghc-options: -Werror\n' > cabal.project.local
       - run: cabal build
       - run: cabal test --test-show-details=direct
       # Checks the benchmark builds and runs (one iteration on one thread).
