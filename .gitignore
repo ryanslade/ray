@@ -42,3 +42,6 @@ haskell/dist-newstyle/
 haskell/cabal.project.local
 haskell/out.png
 haskell/test/golden.actual.ppm
+csharp/artifacts/
+csharp/out.png
+csharp/test/Raytracer.Tests/golden.actual.ppm

@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/bench/">
+    <Project Path="bench/Raytracer.Bench/Raytracer.Bench.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Raytracer.Cli/Raytracer.Cli.csproj" />
+    <Project Path="src/Raytracer/Raytracer.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Raytracer.Tests/Raytracer.Tests.csproj" />
+  </Folder>
+</Solution>

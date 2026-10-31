@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Raytracer/Raytracer.csproj" />
+    <Compile Include="../../test/Raytracer.Tests/Scene.cs" Link="Scene.cs" />
+  </ItemGroup>
+
+</Project>

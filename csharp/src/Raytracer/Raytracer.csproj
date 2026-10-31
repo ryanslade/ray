@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>A simple ray tracer based on Ray Tracing in One Weekend</Description>
+    <Authors>Ryan Slade</Authors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Raytracer.Tests" />
+  </ItemGroup>
+
+</Project>
