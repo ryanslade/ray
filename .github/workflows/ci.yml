@@ -261,10 +261,12 @@ jobs:
         working-directory: haskell
     steps:
       - uses: actions/checkout@v7
-      - uses: haskell-actions/run-ormolu@v21
-        with:
-          version: "0.9.0.0"
-          pattern: haskell/**/*.hs
+      - name: Check the formatting with ormolu
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/ormolu.zip" \
+            https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-x86_64-linux.zip
+          unzip -q -d "$RUNNER_TEMP" "$RUNNER_TEMP/ormolu.zip"
+          "$RUNNER_TEMP/ormolu" --mode check $(git ls-files '*.hs')
       - uses: haskell-actions/hlint-setup@v2
       - uses: haskell-actions/hlint-run@v2
         with:
