@@ -1,0 +1,73 @@
+cabal-version: 3.4
+name:          raytracer
+version:       0.1.0
+synopsis:      A simple ray tracer based on Ray Tracing in One Weekend
+author:        Ryan Slade
+build-type:    Simple
+tested-with:   GHC ==9.14.1
+
+common shared
+  default-language:   GHC2024
+  default-extensions:
+    DuplicateRecordFields
+    NoFieldSelectors
+    OverloadedRecordDot
+
+  build-depends:      base >=4.22 && <5
+  ghc-options:        -Wall -O2 -funbox-strict-fields
+
+common executable
+  ghc-options: -threaded -rtsopts "-with-rtsopts=-N"
+
+library
+  import:          shared
+  hs-source-dirs:  src
+  exposed-modules:
+    Raytracer
+    Raytracer.Camera
+    Raytracer.Image
+    Raytracer.Material
+    Raytracer.Ray
+    Raytracer.Render
+    Raytracer.Rng
+    Raytracer.Sphere
+    Raytracer.Vec3
+    Raytracer.World
+
+  build-depends:
+    , bytestring  >=0.12 && <0.13
+    , mtl         >=2.3  && <2.4
+    , parallel    >=3.2  && <3.4
+
+executable raytracer
+  import:         shared, executable
+  hs-source-dirs: app
+  main-is:        Main.hs
+  build-depends:
+    , mtl
+    , raytracer
+
+test-suite test
+  import:         shared, executable
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is:        Main.hs
+  other-modules:  Scene
+  build-depends:
+    , bytestring
+    , mtl
+    , raytracer
+    , tasty             >=1.5  && <1.6
+    , tasty-hunit       >=0.10 && <0.11
+    , tasty-quickcheck  >=0.11 && <0.12
+
+-- Mirrors BenchmarkRender in the Go version: the test scene at 100x100 with
+-- 50 samples per pixel. Usage: cabal bench --benchmark-options="[iterations]
+-- [threads]"
+benchmark bench
+  import:         shared, executable
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: bench test
+  main-is:        Bench.hs
+  other-modules:  Scene
+  build-depends:  raytracer

@@ -38,3 +38,7 @@ racket/test/golden.actual.ppm
 erlang/_build/
 erlang/out.png
 erlang/test/golden.actual.ppm
+haskell/dist-newstyle/
+haskell/cabal.project.local
+haskell/out.png
+haskell/test/golden.actual.ppm

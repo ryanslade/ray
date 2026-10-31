@@ -1,0 +1,5 @@
+packages: .
+
+-- Pins the compiler, as ghcup names it, since an older default ghc can't
+-- build the package.
+with-compiler: ghc-9.14
