@@ -27,8 +27,7 @@ type Camera =
 module Camera =
     let create (s: CameraSettings) =
         // The same constant as Rust's to_radians.
-        let theta = s.Vfov * (System.Math.PI / 180.0)
-        let halfHeight = tan (theta / 2.0)
+        let halfHeight = tan (s.Vfov * (System.Math.PI / 180.0) / 2.0)
         let halfWidth = s.Aspect * halfHeight
         let w = Vec3.unit (s.LookFrom - s.LookAt)
         let u = Vec3.unit (Vec3.cross s.VUp w)

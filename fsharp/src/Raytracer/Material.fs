@@ -7,13 +7,7 @@ type Material =
 
 /// Where a ray meets a surface.
 [<Struct>]
-type Hit =
-    {
-        T: float
-        Point: Vec3
-        Normal: Vec3
-        Material: Material
-    }
+type Hit = { T: float; Point: Vec3; Normal: Vec3; Material: Material }
 
 module Material =
     /// A metal whose fuzz is clamped to [0, 1]: 0 is a perfect mirror.
@@ -49,25 +43,13 @@ module Material =
         | Lambertian albedo ->
             let target = hit.Point + hit.Normal + Vec3.randomInUnitSphere rng
 
-            ValueSome(
-                albedo,
-                {
-                    Origin = hit.Point
-                    Direction = target - hit.Point
-                }
-            )
+            ValueSome(albedo, { Origin = hit.Point; Direction = target - hit.Point })
         | Metal(albedo, fuzz) ->
             let reflected = reflect (Vec3.unit rayIn.Direction) hit.Normal
             let direction = reflected + fuzz * Vec3.randomInUnitSphere rng
 
             if Vec3.dot direction hit.Normal > 0.0 then
-                ValueSome(
-                    albedo,
-                    {
-                        Origin = hit.Point
-                        Direction = direction
-                    }
-                )
+                ValueSome(albedo, { Origin = hit.Point; Direction = direction })
             else
                 ValueNone
         | Dielectric refIndex ->
@@ -86,10 +68,4 @@ module Material =
                 | ValueSome refracted when rng.NextFloat() >= schlick cosine refIndex -> refracted
                 | _ -> reflect d hit.Normal
 
-            ValueSome(
-                Color.white,
-                {
-                    Origin = hit.Point
-                    Direction = direction
-                }
-            )
+            ValueSome(Color.white, { Origin = hit.Point; Direction = direction })

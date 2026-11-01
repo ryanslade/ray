@@ -1,19 +1,10 @@
 namespace Raytracer
 
-type Sphere =
-    {
-        Center: Vec3
-        Radius: float
-        Material: Material
-    }
+type Sphere = { Center: Vec3; Radius: float; Material: Material }
 
 module Sphere =
     let create center radius material =
-        {
-            Center = center
-            Radius = radius
-            Material = material
-        }
+        { Center = center; Radius = radius; Material = material }
 
     /// The nearest t in (tMin, tMax) at which the ray meets the sphere.
     let intersect (s: Sphere) (ray: Ray) tMin tMax =

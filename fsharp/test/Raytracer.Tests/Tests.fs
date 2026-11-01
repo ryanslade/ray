@@ -80,11 +80,7 @@ let tests =
             test "a ray hits a sphere" {
                 let s = Sphere.create (Vec3.make 0.0 0.0 -1.0) 0.5 (Dielectric 1.5)
 
-                let towards =
-                    {
-                        Origin = Vec3.zero
-                        Direction = Vec3.make 0.0 0.0 -1.0
-                    }
+                let towards = { Origin = Vec3.zero; Direction = Vec3.make 0.0 0.0 -1.0 }
 
                 match Sphere.hit s towards 0.0 infinity with
                 | ValueSome hit ->
@@ -95,11 +91,7 @@ let tests =
                 let far = Sphere.hit s towards 0.6 infinity |> ValueOption.map _.T
                 Expect.equal far (ValueSome 1.5) "far side"
 
-                let away =
-                    {
-                        Origin = Vec3.zero
-                        Direction = Vec3.make 0.0 1.0 0.0
-                    }
+                let away = { Origin = Vec3.zero; Direction = Vec3.make 0.0 1.0 0.0 }
 
                 Expect.isTrue (Sphere.hit s away 0.0 infinity).IsNone "going away"
             }
@@ -114,11 +106,7 @@ let tests =
                             Sphere.create (Vec3.make 0.0 0.0 -2.0) 0.5 m
                         ]
 
-                let ray =
-                    {
-                        Origin = Vec3.zero
-                        Direction = Vec3.make 0.0 0.0 -1.0
-                    }
+                let ray = { Origin = Vec3.zero; Direction = Vec3.make 0.0 0.0 -1.0 }
 
                 let t = World.hit world ray 0.0 infinity |> ValueOption.map _.T
                 Expect.equal t (ValueSome 1.5) "t"

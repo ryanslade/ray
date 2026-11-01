@@ -8,7 +8,6 @@
   <ItemGroup>
     <Compile Include="Rng.fs" />
     <Compile Include="Vec3.fs" />
-    <Compile Include="Ray.fs" />
     <Compile Include="Camera.fs" />
     <Compile Include="Material.fs" />
     <Compile Include="Sphere.fs" />

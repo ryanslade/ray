@@ -70,23 +70,30 @@ module Image =
 
         ~~~(Array.fold step 0xffffffffu bytes)
 
+    let private bigEndian (n: uint32) =
+        let bytes = Array.zeroCreate<byte> 4
+        BinaryPrimitives.WriteUInt32BigEndian(bytes, n)
+        bytes
+
     let private chunk (out: Stream) (kind: string) (data: byte array) =
         let typed = Array.append (Encoding.ASCII.GetBytes kind) data
-        let word = Array.zeroCreate<byte> 4
-        BinaryPrimitives.WriteInt32BigEndian(word, data.Length)
-        out.Write word
+        out.Write(bigEndian (uint32 data.Length))
         out.Write typed
-        BinaryPrimitives.WriteUInt32BigEndian(word, crc32 typed)
-        out.Write word
+        out.Write(bigEndian (crc32 typed))
 
     /// PNG encoding: 8-bit RGB, compressed with zlib, with no filtering.
     let toPng img =
-        let header = Array.zeroCreate<byte> 13
-        BinaryPrimitives.WriteInt32BigEndian(header, img.Width)
-        BinaryPrimitives.WriteInt32BigEndian(header.AsSpan 4, img.Height)
         // 8 bits per channel, RGB, deflate, no filtering, no interlacing.
-        header[8] <- 8uy
-        header[9] <- 2uy
+        let header =
+            [|
+                yield! bigEndian (uint32 img.Width)
+                yield! bigEndian (uint32 img.Height)
+                8uy
+                2uy
+                0uy
+                0uy
+                0uy
+            |]
 
         use compressed = new MemoryStream()
 
