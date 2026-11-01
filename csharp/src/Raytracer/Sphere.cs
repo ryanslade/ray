@@ -10,24 +10,20 @@ public sealed record Sphere(Vec3 Center, double Radius, Material Material)
         Vec3 oc = ray.Origin - Center;
         double a = ray.Direction.Dot(ray.Direction);
         double b = oc.Dot(ray.Direction);
-        double c = oc.Dot(oc) - Radius * Radius;
-        double discriminant = b * b - a * c;
-        if (discriminant >= 0.0)
-        {
-            double sqrtD = Math.Sqrt(discriminant);
-            t = (-b - sqrtD) / a;
-            if (t < tMax && t > tMin)
-            {
-                return true;
-            }
-            t = (-b + sqrtD) / a;
-            if (t < tMax && t > tMin)
-            {
-                return true;
-            }
-        }
+        double discriminant = b * b - a * (oc.Dot(oc) - Radius * Radius);
         t = 0.0;
-        return false;
+        if (discriminant < 0.0)
+        {
+            return false;
+        }
+        double sqrtD = Math.Sqrt(discriminant);
+        t = (-b - sqrtD) / a;
+        if (t < tMax && t > tMin)
+        {
+            return true;
+        }
+        t = (-b + sqrtD) / a;
+        return t < tMax && t > tMin;
     }
 
     /// <summary>The hit record for a t found by <see cref="TryIntersect"/>.</summary>

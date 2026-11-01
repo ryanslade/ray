@@ -23,7 +23,7 @@ lines, comments, tests or benchmarks.
 | [Scala](scala)                | Scala 3 on the JVM                    |         9.1 s |           323 |
 | [Racket](racket)              | Racket CS, parallel futures           |        13.2 s |           522 |
 | [OCaml](ocaml)                | OCaml 5, parallel domains             |        13.4 s |           297 |
-| [C#](csharp)                  | .NET 10, `Parallel.For` over rows     |        14.0 s |           424 |
+| [C#](csharp)                  | .NET 10, `Parallel.For` over rows     |        14.0 s |           385 |
 | [F#](fsharp)                  | .NET 10, `Parallel.For` over rows     |        14.7 s |           400 |
 | [Haskell](haskell)            | GHC, pure, with `parMap` over rows    |        15.7 s |           398 |
 | [Clojure](clojure)            | JVM                                   |        18.1 s |           434 |

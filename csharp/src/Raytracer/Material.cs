@@ -31,18 +31,10 @@ public sealed record Lambertian(Color Albedo) : Material
     }
 }
 
-public sealed record Metal : Material
+public sealed record Metal(Color Albedo, double Fuzz) : Material
 {
-    /// <param name="fuzz">Clamped to [0, 1]: 0 is a perfect mirror.</param>
-    public Metal(Color albedo, double fuzz)
-    {
-        Albedo = albedo;
-        Fuzz = Math.Clamp(fuzz, 0.0, 1.0);
-    }
-
-    public Color Albedo { get; }
-
-    public double Fuzz { get; }
+    /// <summary>Clamped to [0, 1]: 0 is a perfect mirror.</summary>
+    public double Fuzz { get; } = Math.Clamp(Fuzz, 0.0, 1.0);
 
     public override bool Scatter(in Ray rayIn, in Hit hit, Rng rng, out Color attenuation, out Ray scattered)
     {

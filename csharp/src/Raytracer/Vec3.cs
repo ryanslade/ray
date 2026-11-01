@@ -28,12 +28,17 @@ public readonly record struct Vec3(double X, double Y, double Z)
     /// Rejection sampling: picks points in the enclosing cube until one lands
     /// inside.
     /// </summary>
-    public static Vec3 RandomInUnitSphere(Rng rng)
+    public static Vec3 RandomInUnitSphere(Rng rng) => RandomInUnit(rng, sphere: true);
+
+    public static Vec3 RandomInUnitDisk(Rng rng) => RandomInUnit(rng, sphere: false);
+
+    /// <summary>The same, in the enclosing square when not a sphere.</summary>
+    private static Vec3 RandomInUnit(Rng rng, bool sphere)
     {
         while (true)
         {
             // Arguments are evaluated left to right, so x is drawn first.
-            var p = new Vec3(2.0 * rng.NextDouble() - 1.0, 2.0 * rng.NextDouble() - 1.0, 2.0 * rng.NextDouble() - 1.0);
+            var p = new Vec3(Coord(rng), Coord(rng), sphere ? Coord(rng) : 0.0);
             if (p.LengthSquared() < 1.0)
             {
                 return p;
@@ -41,15 +46,5 @@ public readonly record struct Vec3(double X, double Y, double Z)
         }
     }
 
-    public static Vec3 RandomInUnitDisk(Rng rng)
-    {
-        while (true)
-        {
-            var p = new Vec3(2.0 * rng.NextDouble() - 1.0, 2.0 * rng.NextDouble() - 1.0, 0.0);
-            if (p.LengthSquared() < 1.0)
-            {
-                return p;
-            }
-        }
-    }
+    private static double Coord(Rng rng) => 2.0 * rng.NextDouble() - 1.0;
 }

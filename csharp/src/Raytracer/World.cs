@@ -4,8 +4,6 @@ public sealed class World(IEnumerable<Sphere> spheres)
 {
     private readonly Sphere[] _spheres = [.. spheres];
 
-    public IReadOnlyList<Sphere> Spheres => _spheres;
-
     /// <summary>
     /// Finds the closest hit in (tMin, tMax), shrinking tMax as nearer
     /// spheres are found. Only the hit record for the closest sphere is ever
