@@ -1,12 +1,5 @@
-module Raytracer.Camera
-  ( CameraSettings (..),
-    Camera,
-    mkCamera,
-    getRay,
-  )
-where
+module Raytracer.Camera (CameraSettings (..), Camera, mkCamera, getRay) where
 
-import Raytracer.Ray
 import Raytracer.Rng (Rand)
 import Raytracer.Vec3
 
@@ -26,11 +19,7 @@ mkCamera :: CameraSettings -> Camera
 mkCamera s =
   Camera
     { origin = s.lookFrom,
-      lowerLeft =
-        s.lookFrom
-          - (halfWidth * s.focusDist) *^ u
-          - (halfHeight * s.focusDist) *^ v
-          - s.focusDist *^ w,
+      lowerLeft = s.lookFrom - (halfWidth * s.focusDist) *^ u - (halfHeight * s.focusDist) *^ v - s.focusDist *^ w,
       horizontal = (2 * halfWidth * s.focusDist) *^ u,
       vertical = (2 * halfHeight * s.focusDist) *^ v,
       u,
@@ -39,8 +28,7 @@ mkCamera s =
     }
   where
     -- The same constant as Rust's to_radians.
-    theta = s.vfov * (pi / 180)
-    halfHeight = tan (theta / 2)
+    halfHeight = tan (s.vfov * (pi / 180) / 2)
     halfWidth = s.aspect * halfHeight
     w = normalize (s.lookFrom - s.lookAt)
     u = normalize (cross s.vUp w)
@@ -52,8 +40,4 @@ getRay :: Camera -> Double -> Double -> Rand Ray
 getRay c s t = do
   Vec3 rx ry _ <- (c.lensRadius *^) <$> randomInUnitDisk
   let offset = rx *^ c.u + ry *^ c.v
-  pure
-    Ray
-      { origin = c.origin + offset,
-        direction = c.lowerLeft + s *^ c.horizontal + t *^ c.vertical - c.origin - offset
-      }
+  pure (Ray (c.origin + offset) (c.lowerLeft + s *^ c.horizontal + t *^ c.vertical - c.origin - offset))

@@ -1,18 +1,5 @@
-module Raytracer.Vec3
-  ( Vec3 (..),
-    Color,
-    black,
-    white,
-    (*^),
-    (^/),
-    dot,
-    cross,
-    norm,
-    normalize,
-    randomInUnitSphere,
-    randomInUnitDisk,
-  )
-where
+-- | Vectors, colours and rays.
+module Raytracer.Vec3 where
 
 import Raytracer.Rng (Rand, uniform)
 
@@ -70,6 +57,12 @@ randomInUnitDisk :: Rand Vec3
 randomInUnitDisk = do
   p <- Vec3 <$> coord <*> coord <*> pure 0
   if dot p p < 1 then pure p else randomInUnitDisk
+
+data Ray = Ray {origin, direction :: !Vec3}
+  deriving (Eq, Show)
+
+at :: Ray -> Double -> Vec3
+at ray t = ray.origin + t *^ ray.direction
 
 coord :: Rand Double
 coord = do

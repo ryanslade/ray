@@ -27,10 +27,8 @@ library
     Raytracer.Camera
     Raytracer.Image
     Raytracer.Material
-    Raytracer.Ray
     Raytracer.Render
     Raytracer.Rng
-    Raytracer.Sphere
     Raytracer.Vec3
     Raytracer.World
 

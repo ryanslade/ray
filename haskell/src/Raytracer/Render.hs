@@ -7,7 +7,6 @@ import Data.ByteString qualified as B
 import Raytracer.Camera (Camera, getRay)
 import Raytracer.Image (Image, encode, fromRows)
 import Raytracer.Material (scatter)
-import Raytracer.Ray
 import Raytracer.Rng (Rand, mkRng, uniform)
 import Raytracer.Vec3
 import Raytracer.World (World)

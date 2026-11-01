@@ -1,13 +1,5 @@
-module Raytracer.Material
-  ( Material (..),
-    metal,
-    Hit (..),
-    scatter,
-    refract,
-  )
-where
+module Raytracer.Material (Material (..), metal, Hit (..), scatter, refract) where
 
-import Raytracer.Ray
 import Raytracer.Rng (Rand, uniform)
 import Raytracer.Vec3
 

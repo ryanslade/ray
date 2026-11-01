@@ -11,7 +11,6 @@ import Data.ByteString.Lazy qualified as BL
 import Data.Maybe (isNothing)
 import Data.Word (Word16, Word32)
 import Raytracer
-import Raytracer.Sphere qualified as Sphere
 import Raytracer.World qualified as World
 import Scene qualified
 import System.Environment (lookupEnv)
@@ -64,6 +63,9 @@ splitMix64 = do
   a @?= 0xe220a8397b1dcdaf
   b @?= 0x6e789e6aa1b965f4
 
+hitSphere :: Sphere -> Ray -> Double -> Double -> Maybe Hit
+hitSphere s ray tMin tMax = World.hitAt s ray <$> World.intersect s ray tMin tMax
+
 infinity :: Double
 infinity = 1 / 0
 
@@ -71,13 +73,13 @@ sphereHit :: Assertion
 sphereHit = do
   let s = Sphere (Vec3 0 0 (-1)) 0.5 (Dielectric 1.5)
       towards = Ray (Vec3 0 0 0) (Vec3 0 0 (-1))
-  case Sphere.hit s towards 0 infinity of
+  case hitSphere s towards 0 infinity of
     Just h -> do
       h.t @?= 0.5
       h.normal @?= Vec3 0 0 1
     Nothing -> assertFailure "expected a hit"
-  ((.t) <$> Sphere.hit s towards 0.6 infinity) @?= Just 1.5
-  assertBool "hit going away" (isNothing (Sphere.hit s (Ray (Vec3 0 0 0) (Vec3 0 1 0)) 0 infinity))
+  ((.t) <$> hitSphere s towards 0.6 infinity) @?= Just 1.5
+  assertBool "hit going away" (isNothing (hitSphere s (Ray (Vec3 0 0 0) (Vec3 0 1 0)) 0 infinity))
 
 closestHit :: Assertion
 closestHit = do
@@ -88,18 +90,18 @@ closestHit = do
 -- | The world finds exactly the hit that testing each sphere in turn would.
 sphereBySphere :: Assertion
 sphereBySphere = do
-  let coord scale = (\c -> scale * (2 * c - 1)) <$> uniform
-      vec scale = Vec3 <$> coord scale <*> coord scale <*> coord scale
+  let scaled scale = (\c -> scale * (2 * c - 1)) <$> uniform
+      vec scale = Vec3 <$> scaled scale <*> scaled scale <*> scaled scale
       (spheres, rays) = flip evalState (mkRng 1) $ do
         ss <- replicateM 23 $ do
           center <- vec 3
-          r <- coord 1
+          r <- scaled 1
           pure (Sphere center (0.1 + abs r) (Dielectric 1.5))
         rs <- replicateM 2000 (Ray <$> vec 5 <*> vec 1)
         pure (ss, rs)
       world = World.fromList spheres
       closest ray = fst (foldl' (step ray) (Nothing, maxDouble) spheres)
-      step ray (found, tMax) s = case Sphere.hit s ray 0.001 tMax of
+      step ray (found, tMax) s = case hitSphere s ray 0.001 tMax of
         Just h -> (Just h, h.t)
         Nothing -> (found, tMax)
       summary h = (h.t, h.point, h.normal)

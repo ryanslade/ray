@@ -11,7 +11,7 @@ module Raytracer.Image
   )
 where
 
-import Data.Bits (complement, shiftL, shiftR, xor, (.&.), (.|.))
+import Data.Bits (complement, shiftL, shiftR, testBit, xor, (.|.))
 import Data.ByteString qualified as B
 import Data.ByteString.Builder qualified as BB
 import Data.ByteString.Lazy qualified as BL
@@ -61,73 +61,43 @@ toPpm img =
 toPng :: Image -> BL.ByteString
 toPng img =
   BB.toLazyByteString $
-    BB.byteString (B.pack [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-      <> chunk "IHDR" header
+    BB.word64BE 0x89504e470d0a1a0a
+      <> chunk "IHDR" (BB.word32BE (fromIntegral img.width) <> BB.word32BE (fromIntegral img.height) <> header)
       <> chunk "IDAT" (zlibStored raw)
-      <> chunk "IEND" B.empty
+      <> chunk "IEND" mempty
   where
     -- 8 bits per channel, RGB, deflate, no filtering, no interlacing.
-    header =
-      strict $
-        BB.word32BE (fromIntegral img.width)
-          <> BB.word32BE (fromIntegral img.height)
-          <> BB.byteString (B.pack [8, 2, 0, 0, 0])
+    header = foldMap BB.word8 [8, 2, 0, 0, 0]
     -- Each scanline starts with its filter type, 0 for none.
     raw = B.concat [B.cons 0 row | row <- chunksOf (3 * img.width) img.pixels]
 
 writePng :: FilePath -> Image -> IO ()
 writePng path = BL.writeFile path . toPng
 
-chunk :: String -> B.ByteString -> BB.Builder
-chunk kind body =
-  BB.word32BE (fromIntegral (B.length body))
-    <> BB.byteString typed
-    <> BB.word32BE (crc32 typed)
+chunk :: String -> BB.Builder -> BB.Builder
+chunk kind body = BB.word32BE (fromIntegral (B.length typed - 4)) <> BB.byteString typed <> BB.word32BE (crc32 typed)
   where
-    typed = strict (BB.string7 kind <> BB.byteString body)
+    typed = BL.toStrict (BB.toLazyByteString (BB.string7 kind <> body))
 
 -- | A zlib stream holding the data in uncompressed (stored) deflate blocks,
 -- which can be at most 65535 bytes each. The boot packages have no
 -- compressor, and this keeps the encoder small at the cost of file size.
-zlibStored :: B.ByteString -> B.ByteString
-zlibStored bytes =
-  strict $
-    BB.word8 0x78
-      <> BB.word8 0x01
-      <> blocks (chunksOf 65535 bytes)
-      <> BB.word32BE (adler32 bytes)
+zlibStored :: B.ByteString -> BB.Builder
+zlibStored bytes = BB.word16BE 0x7801 <> foldMap block (zip [1 ..] blocks) <> BB.word32BE adler32
   where
-    blocks [] = block True B.empty
-    blocks [final] = block True final
-    blocks (b : rest) = block False b <> blocks rest
-    block final b =
+    blocks = if B.null bytes then [B.empty] else chunksOf 65535 bytes
+    block (i, b) =
       let len = fromIntegral (B.length b) :: Word16
-       in BB.word8 (if final then 1 else 0)
-            <> BB.word16LE len
-            <> BB.word16LE (complement len)
-            <> BB.byteString b
+       in BB.word8 (if i == length blocks then 1 else 0) <> BB.word16LE len <> BB.word16LE (complement len) <> BB.byteString b
+    adler32 = let (a, b) = B.foldl' step (1, 0) bytes in b `shiftL` 16 .|. a
+    step (!a, !b) w = let a' = (a + fromIntegral w) `mod` 65521 in (a', (b + a') `mod` 65521)
 
 crc32 :: B.ByteString -> Word32
-crc32 = complement . B.foldl' step 0xffffffff
+crc32 = complement . B.foldl' (\c b -> iterate shift (c `xor` fromIntegral b) !! 8) 0xffffffff
   where
-    step c b = bits (8 :: Int) (c `xor` fromIntegral b)
-    bits 0 c = c
-    bits n c
-      | c .&. 1 == 1 = bits (n - 1) (0xedb88320 `xor` (c `shiftR` 1))
-      | otherwise = bits (n - 1) (c `shiftR` 1)
-
-adler32 :: B.ByteString -> Word32
-adler32 bytes = (b `shiftL` 16) .|. a
-  where
-    (a, b) = B.foldl' step (1, 0) bytes
-    step (!s1, !s2) w =
-      let s1' = (s1 + fromIntegral w) `mod` 65521
-       in (s1', (s2 + s1') `mod` 65521)
+    shift c = if testBit c 0 then 0xedb88320 `xor` (c `shiftR` 1) else c `shiftR` 1
 
 chunksOf :: Int -> B.ByteString -> [B.ByteString]
 chunksOf n bytes
   | B.null bytes = []
   | otherwise = let (h, rest) = B.splitAt n bytes in h : chunksOf n rest
-
-strict :: BB.Builder -> B.ByteString
-strict = BL.toStrict . BB.toLazyByteString

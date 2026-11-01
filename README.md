@@ -25,7 +25,7 @@ lines, comments, tests or benchmarks.
 | [OCaml](ocaml)                | OCaml 5, parallel domains             |        13.4 s |           297 |
 | [C#](csharp)                  | .NET 10, `Parallel.For` over rows     |        14.0 s |           424 |
 | [F#](fsharp)                  | .NET 10, `Parallel.For` over rows     |        14.7 s |           400 |
-| [Haskell](haskell)            | GHC, pure, with `parMap` over rows    |        15.7 s |           497 |
+| [Haskell](haskell)            | GHC, pure, with `parMap` over rows    |        15.7 s |           398 |
 | [Clojure](clojure)            | JVM                                   |        18.1 s |           434 |
 | [Elixir](elixir)              | One BEAM process per row              |         155 s |           531 |
 | [Erlang](erlang)              | A pool of one process per core        |         160 s |           527 |

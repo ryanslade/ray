@@ -1,14 +1,6 @@
 -- | A small, fast pseudo-random number generator (SplitMix64), the same as
 -- the other versions use, so that scenes and renders are identical.
-module Raytracer.Rng
-  ( Rng,
-    mkRng,
-    nextWord64,
-    nextDouble,
-    Rand,
-    uniform,
-  )
-where
+module Raytracer.Rng (Rng, mkRng, nextWord64, nextDouble, Rand, uniform) where
 
 import Control.Monad.State.Strict (State, state)
 import Data.Bits (shiftR, xor)
