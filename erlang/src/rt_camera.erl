@@ -36,20 +36,17 @@ new(#{
     focus_dist := FocusDist
 }) ->
     %% The same constant as Rust's to_radians.
-    Theta = VFov * (math:pi() / 180.0),
-    HalfHeight = math:tan(Theta / 2.0),
+    HalfHeight = math:tan(VFov * (math:pi() / 180.0) / 2.0),
     HalfWidth = Aspect * HalfHeight,
     W = rt_vec3:unit(rt_vec3:sub(LookFrom, LookAt)),
     U = rt_vec3:unit(rt_vec3:cross(VUp, W)),
     V = rt_vec3:cross(W, U),
-    LowerLeft = lists:foldl(
-        fun(Step, P) -> rt_vec3:sub(P, Step) end,
-        LookFrom,
-        [
-            rt_vec3:scale(HalfWidth * FocusDist, U),
-            rt_vec3:scale(HalfHeight * FocusDist, V),
-            rt_vec3:scale(FocusDist, W)
-        ]
+    LowerLeft = rt_vec3:sub(
+        rt_vec3:sub(
+            rt_vec3:sub(LookFrom, rt_vec3:scale(HalfWidth * FocusDist, U)),
+            rt_vec3:scale(HalfHeight * FocusDist, V)
+        ),
+        rt_vec3:scale(FocusDist, W)
     ),
     #camera{
         origin = LookFrom,
@@ -63,27 +60,12 @@ new(#{
 
 %% A ray through the viewport at normalised coordinates (S, T), with its
 %% origin jittered across the lens.
--spec get_ray(camera(), float(), float(), rt_rng:rng()) -> {rt_ray:ray(), rt_rng:rng()}.
-get_ray(
-    #camera{
-        origin = Origin,
-        lower_left = LowerLeft,
-        horizontal = Horizontal,
-        vertical = Vertical,
-        u = U,
-        v = V,
-        lens_radius = LensRadius
-    },
-    S,
-    T,
-    Rng0
-) ->
-    {Disk, Rng} = rt_vec3:random_in_unit_disk(Rng0),
-    {RX, RY, _} = rt_vec3:scale(LensRadius, Disk),
-    Offset = rt_vec3:add(rt_vec3:scale(RX, U), rt_vec3:scale(RY, V)),
+-spec get_ray(camera(), float(), float(), rt_rng:rng()) -> {rt_vec3:ray(), rt_rng:rng()}.
+get_ray(#camera{origin = Origin, u = U, v = V, lens_radius = R} = C, S, T, Rng0) ->
+    {{X, Y, _}, Rng} = rt_vec3:random_in_unit_disk(Rng0),
+    Offset = rt_vec3:add(rt_vec3:scale(R * X, U), rt_vec3:scale(R * Y, V)),
     Target = rt_vec3:add(
-        rt_vec3:add(LowerLeft, rt_vec3:scale(S, Horizontal)),
-        rt_vec3:scale(T, Vertical)
+        rt_vec3:add(C#camera.lower_left, rt_vec3:scale(S, C#camera.horizontal)),
+        rt_vec3:scale(T, C#camera.vertical)
     ),
-    Direction = rt_vec3:sub(rt_vec3:sub(Target, Origin), Offset),
-    {{rt_vec3:add(Origin, Offset), Direction}, Rng}.
+    {{rt_vec3:add(Origin, Offset), rt_vec3:sub(rt_vec3:sub(Target, Origin), Offset)}, Rng}.

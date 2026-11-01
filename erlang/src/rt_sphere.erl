@@ -11,7 +11,7 @@ new(Center, Radius, Material) ->
 %% The nearest T in (TMin, TMax) at which the ray meets the sphere, or none.
 %% rt_world:hit/4 has its own copy of this arithmetic, which must stay in
 %% step with it.
--spec intersect(#sphere{}, rt_ray:ray(), float(), float()) -> float() | none.
+-spec intersect(#sphere{}, rt_vec3:ray(), float(), float()) -> float() | none.
 intersect(#sphere{center = Center, radius = Radius}, {Origin, Direction}, TMin, TMax) ->
     OC = rt_vec3:sub(Origin, Center),
     A = rt_vec3:dot(Direction, Direction),
@@ -33,13 +33,13 @@ intersect(#sphere{center = Center, radius = Radius}, {Origin, Direction}, TMin, 
     end.
 
 %% The hit record for a T returned by intersect/4.
--spec hit_at(#sphere{}, rt_ray:ray(), float()) -> #hit{}.
+-spec hit_at(#sphere{}, rt_vec3:ray(), float()) -> #hit{}.
 hit_at(#sphere{center = Center, radius = Radius, material = Material}, Ray, T) ->
-    Point = rt_ray:at(Ray, T),
+    Point = rt_vec3:at(Ray, T),
     Normal = rt_vec3:divide(rt_vec3:sub(Point, Center), Radius),
     #hit{t = T, point = Point, normal = Normal, material = Material}.
 
--spec hit(#sphere{}, rt_ray:ray(), float(), float()) -> #hit{} | none.
+-spec hit(#sphere{}, rt_vec3:ray(), float(), float()) -> #hit{} | none.
 hit(Sphere, Ray, TMin, TMax) ->
     case intersect(Sphere, Ray, TMin, TMax) of
         none -> none;

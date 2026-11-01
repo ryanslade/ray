@@ -25,8 +25,8 @@ dielectric(RefIndex) ->
     {dielectric, RefIndex}.
 
 %% The attenuation and the scattered ray, unless the ray is absorbed.
--spec scatter(material(), rt_ray:ray(), #hit{}, rt_rng:rng()) ->
-    {scattered, rt_vec3:vec3(), rt_ray:ray(), rt_rng:rng()} | {absorbed, rt_rng:rng()}.
+-spec scatter(material(), rt_vec3:ray(), #hit{}, rt_rng:rng()) ->
+    {scattered, rt_vec3:vec3(), rt_vec3:ray(), rt_rng:rng()} | {absorbed, rt_rng:rng()}.
 scatter({lambertian, Albedo}, _RayIn, #hit{point = P, normal = N}, Rng0) ->
     {R, Rng} = rt_vec3:random_in_unit_sphere(Rng0),
     Target = rt_vec3:add(rt_vec3:add(P, N), R),

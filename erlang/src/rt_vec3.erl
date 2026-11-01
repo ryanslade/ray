@@ -1,28 +1,14 @@
 %% Vectors of three floats, also used for colours (as r, g and b).
 -module(rt_vec3).
 
--export([
-    add/2,
-    sub/2,
-    mul/2,
-    scale/2,
-    divide/2,
-    neg/1,
-    dot/2,
-    cross/2,
-    norm/1,
-    unit/1,
-    random_in_unit_sphere/1,
-    random_in_unit_disk/1
-]).
--export_type([vec3/0]).
+-export([add/2, sub/2, mul/2, scale/2, divide/2, neg/1, dot/2, cross/2, norm/1, unit/1, at/2]).
+-export([random_in_unit_sphere/1, random_in_unit_disk/1]).
+-export_type([vec3/0, ray/0]).
 
 -type vec3() :: {float(), float(), float()}.
+-type ray() :: {Origin :: vec3(), Direction :: vec3()}.
 
-%% The guards tell the compiler that the components are floats, so that the
-%% JIT can use float instructions instead of arithmetic that checks the types
-%% of its operands.
--define(FLOATS(X, Y, Z), is_float(X), is_float(Y), is_float(Z)).
+-include("raytracer.hrl").
 
 -spec add(vec3(), vec3()) -> vec3().
 add({AX, AY, AZ}, {BX, BY, BZ}) when ?FLOATS(AX, AY, AZ), ?FLOATS(BX, BY, BZ) ->
@@ -64,6 +50,10 @@ norm(V) ->
 -spec unit(vec3()) -> vec3().
 unit(V) ->
     divide(V, norm(V)).
+
+-spec at(ray(), float()) -> vec3().
+at({Origin, Direction}, T) ->
+    add(Origin, scale(T, Direction)).
 
 %% Rejection sampling: picks points in the enclosing cube until one lands
 %% inside.

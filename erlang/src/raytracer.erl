@@ -9,11 +9,7 @@
 
 -spec main([string()]) -> no_return().
 main(Args) ->
-    Output =
-        case Args of
-            [Path | _] -> Path;
-            [] -> "out.png"
-        end,
+    Output = hd(Args ++ ["out.png"]),
     io:format(standard_error, "Generating world~n", []),
     World = random_world(rt_rng:new(1)),
     LookFrom = {3.0, 2.0, 3.0},

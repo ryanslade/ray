@@ -1,16 +1,8 @@
 %% 8-bit RGB images. Row 0 is the top.
 -module(rt_image).
 
--export([
-    new/2,
-    from_pixels/3,
-    encode/1,
-    set_pixel/4,
-    pixel/3,
-    to_ppm/1,
-    to_png/1,
-    save_png/2
-]).
+-export([new/2, from_pixels/3, encode/1, set_pixel/4, pixel/3]).
+-export([to_ppm/1, to_png/1, save_png/2]).
 -export_type([image/0]).
 
 -record(image, {

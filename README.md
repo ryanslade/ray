@@ -28,7 +28,7 @@ lines, comments, tests or benchmarks.
 | [Haskell](haskell)            | GHC, pure, with `parMap` over rows    |        15.7 s |           497 |
 | [Clojure](clojure)            | JVM                                   |        18.1 s |           434 |
 | [Elixir](elixir)              | One BEAM process per row              |         155 s |           531 |
-| [Erlang](erlang)              | A pool of one process per core        |         160 s |           586 |
+| [Erlang](erlang)              | A pool of one process per core        |         160 s |           527 |
 | [Janet](janet)                | Bytecode interpreter, OS threads      |         400 s |           439 |
 
 Apart from Go, OCaml, Janet and Metal, every port's renders are byte-identical

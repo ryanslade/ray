@@ -10,7 +10,7 @@
 -define(SKY_BLUE, {0.5, 0.7, 1.0}).
 
 %% The colour seen along a ray, following up to 50 bounces.
--spec ray_color(rt_world:world(), rt_ray:ray(), rt_rng:rng()) -> {rt_vec3:vec3(), rt_rng:rng()}.
+-spec ray_color(rt_world:world(), rt_vec3:ray(), rt_rng:rng()) -> {rt_vec3:vec3(), rt_rng:rng()}.
 ray_color(World, Ray, Rng) ->
     bounce(World, Ray, ?WHITE, 0, Rng).
 
@@ -56,54 +56,43 @@ render(Width, Height, Samples, Camera, World) ->
     pos_integer()
 ) -> rt_image:image().
 render(Width, Height, Samples, Camera, World, Workers) when Workers > 0 ->
-    RenderRow = fun(Y) -> render_row(Y, Width, Height, Samples, Camera, World) end,
-    Rows = in_parallel(RenderRow, lists:seq(0, Height - 1), Workers),
-    rt_image:from_pixels(Width, Height, iolist_to_binary(Rows)).
-
-%% Applies F to each element of Jobs, in up to N worker processes, and
-%% returns the results in order. Rows vary a lot in cost (sky is cheap,
-%% spheres are expensive), so each worker asks for the next job when it
-%% finishes one, rather than taking a fixed share up front.
-in_parallel(F, Jobs, N) ->
-    Ref = make_ref(),
     Parent = self(),
-    Worker = fun() -> work(Parent, Ref, F) end,
-    Count = min(N, length(Jobs)),
-    _ = [spawn_link(Worker) || _ <- lists:seq(1, Count)],
-    Results = dispatch(Ref, lists:enumerate(0, Jobs), Count, #{}),
-    [maps:get(I, Results) || I <- lists:seq(0, length(Jobs) - 1)].
+    Ref = make_ref(),
+    RenderRow = fun(Y) -> render_row(Y, Width, Height, Samples, Camera, World) end,
+    Count = min(Workers, Height),
+    _ = [spawn_link(fun() -> work(Parent, Ref, RenderRow, none) end) || _ <- lists:seq(1, Count)],
+    Rows = dispatch(Ref, lists:seq(0, Height - 1), Count, #{}),
+    Pixels = [maps:get(Y, Rows) || Y <- lists:seq(0, Height - 1)],
+    rt_image:from_pixels(Width, Height, iolist_to_binary(Pixels)).
 
-work(Parent, Ref, F) ->
-    Parent ! {Ref, self(), ready},
-    work_loop(Parent, Ref, F).
-
-work_loop(Parent, Ref, F) ->
+%% A worker sends back each row it renders and asks for the next one. Rows
+%% vary a lot in cost (sky is cheap, spheres are expensive), so they are
+%% handed out one at a time rather than as a fixed share up front.
+work(Parent, Ref, RenderRow, Result) ->
+    Parent ! {Ref, self(), Result},
     receive
-        {Ref, {I, Job}} ->
-            Parent ! {Ref, self(), {done, I, F(Job)}},
-            work_loop(Parent, Ref, F);
-        {Ref, stop} ->
-            ok
+        {Ref, {row, Y}} -> work(Parent, Ref, RenderRow, {Y, RenderRow(Y)});
+        {Ref, stop} -> ok
     end.
 
-%% Hands out jobs as workers become free, until every worker has stopped.
-dispatch(_Ref, _Jobs, 0, Results) ->
-    Results;
-dispatch(Ref, Jobs, Active, Results0) ->
+%% Hands out rows as workers become free, until every worker has stopped.
+dispatch(_Ref, _Ys, 0, Rows) ->
+    Rows;
+dispatch(Ref, Ys, Active, Rows0) ->
     receive
-        {Ref, Pid, Msg} ->
-            Results =
-                case Msg of
-                    ready -> Results0;
-                    {done, I, Result} -> Results0#{I => Result}
+        {Ref, Pid, Result} ->
+            Rows =
+                case Result of
+                    none -> Rows0;
+                    {Y, Row} -> Rows0#{Y => Row}
                 end,
-            case Jobs of
-                [Job | Rest] ->
-                    Pid ! {Ref, Job},
-                    dispatch(Ref, Rest, Active, Results);
+            case Ys of
+                [Next | Rest] ->
+                    Pid ! {Ref, {row, Next}},
+                    dispatch(Ref, Rest, Active, Rows);
                 [] ->
                     Pid ! {Ref, stop},
-                    dispatch(Ref, [], Active - 1, Results)
+                    dispatch(Ref, [], Active - 1, Rows)
             end
     end.
 
