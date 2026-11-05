@@ -1,0 +1,32 @@
+(ns raytracer.rng
+  "A small, fast pseudo-random number generator (SplitMix64), the same as the
+  other versions use, so that scenes and renders are identical."
+  (:include "raytracer/types.hpp")
+  (:require [raytracer.native :refer [defnative]]))
+
+;; jank reads integer literals that don't fit in a signed 64-bit integer as
+;; doubles, so the constants are written in halves.
+(defmacro ^:private u64 [hi lo]
+  `(cpp/| (cpp/<< (cpp/uint64_t ~hi) (cpp/int 32)) (cpp/uint64_t ~lo)))
+
+;; jank's reader can't read ^ in a symbol, so this builds cpp/^ itself.
+(defmacro ^:private xor-shift [z n] (list (symbol "cpp" "^") z `(cpp/>> ~z (cpp/int ~n))))
+
+(defnative rng
+  "A pointer to a generator seeded with `seed`. Not safe to share between
+  threads."
+  [seed]
+  `(cpp/new cpp/rt.rng (cpp/cast cpp/uint64_t ~seed)))
+
+(defnative next-u64 [rng]
+  `(let [z# (cpp/+= (cpp/.-state ~rng) (u64 0x9e3779b9 0x7f4a7c15))
+         z# (cpp/* (xor-shift z# 30) (u64 0xbf58476d 0x1ce4e5b9))
+         z# (cpp/* (xor-shift z# 27) (u64 0x94d049bb 0x133111eb))]
+     (xor-shift z# 31)))
+
+(defnative next-f64
+  "A uniformly distributed double in [0, 1)."
+  [rng]
+  ;; The top 53 bits fill a double's mantissa exactly.
+  `(cpp/* (cpp/cast cpp/double (cpp/>> (next-u64 ~rng) (cpp/int 11)))
+          1.1102230246251565e-16))

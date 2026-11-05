@@ -1,0 +1,126 @@
+(ns raytracer.image
+  "8-bit RGB images, boxed. Row 0 is the top."
+  (:include "raytracer/types.hpp" "fstream" "zlib.h")
+  (:require [raytracer.native :refer [defnative]]
+            [raytracer.vec3 :as v]))
+
+(defn image [width height]
+  (cpp/box (cpp/new cpp/rt.image width height
+                    (cpp/std.string. (cpp/cast cpp/size_t (* width height 3)) (cpp/char 0)))))
+
+(defnative unbox [img] `(cpp/unbox (:* rt.image) ~img))
+
+(defnative to-byte
+  "A channel in [0, 1] as a byte; out of range values are clamped."
+  [c]
+  ;; Written so that NaN becomes 255, as in the Rust version.
+  `(let [b# (cpp/* 255.99 (if (cpp/< ~c 1.0) ~c 1.0))]
+     (cpp/cast cpp/char (if (cpp/> b# 0.0) (cpp/cast cpp/int b#) (cpp/int 0)))))
+
+(defnative index
+  "The index of the pixel at (`x`, `y`) in the image `img`, a pointer."
+  [img x y]
+  `(do
+     (when-not (and (cpp/>= ~x 0) (cpp/< ~x (cpp/.-width ~img))
+                    (cpp/>= ~y 0) (cpp/< ~y (cpp/.-height ~img)))
+       (throw (ex-info "pixel out of bounds" {:x ~x :y ~y})))
+     (cpp/cast cpp/size_t (cpp/* 3 (cpp/+ (cpp/* ~y (cpp/.-width ~img)) ~x)))))
+
+(defnative set-pixel!
+  "Stores a colour, clamping each channel to [0, 1]. `img` is a pointer."
+  [img x y c]
+  `(let [i# (index ~img ~x ~y)
+         p# (cpp/.-pixels ~img)]
+     (cpp/= (cpp/aget p# i#) (to-byte (v/x ~c)))
+     (cpp/= (cpp/aget p# (cpp/+ i# 1)) (to-byte (v/y ~c)))
+     (cpp/= (cpp/aget p# (cpp/+ i# 2)) (to-byte (v/z ~c)))))
+
+(defn set-color!
+  "set-pixel! for jank callers, with the colour as [r g b]."
+  [img x y c]
+  (let [img (unbox img)]
+    (set-pixel! img (cpp/cast cpp/int64_t x) (cpp/cast cpp/int64_t y) (v/of c))
+    nil))
+
+(defn pixel
+  "The pixel at (`x`, `y`) as [r g b], each in [0, 255]."
+  [img x y]
+  (let [img (unbox img)
+        i (index img (cpp/cast cpp/int64_t x) (cpp/cast cpp/int64_t y))
+        p (cpp/.-pixels img)]
+    [(cpp/cast cpp/uint8_t (cpp/aget p i))
+     (cpp/cast cpp/uint8_t (cpp/aget p (cpp/+ i 1)))
+     (cpp/cast cpp/uint8_t (cpp/aget p (cpp/+ i 2)))]))
+
+(defn to-ppm
+  "Binary (P6) PPM encoding, as a string."
+  [img]
+  (let [img (unbox img)]
+    (str "P6\n" (cpp/.-width img) " " (cpp/.-height img) "\n255\n" (cpp/.-pixels img))))
+
+(defnative zbytes
+  "The bytes of the std::string `s`, as zlib takes them."
+  [s]
+  `(cpp/unsafe-cast (:* Bytef) (.data ~s)))
+
+(defnative append-u32
+  "Appends `n` to the std::string `out` as four big-endian bytes."
+  [out n]
+  `(do ~@(for [shift [24 16 8 0]]
+           `(.push_back ~out (cpp/cast cpp/char (cpp/>> ~n (cpp/int ~shift)))))))
+
+(defmacro append-bytes
+  "Appends each byte to the std::string `out`."
+  [out & bytes]
+  `(do ~@(for [b bytes] `(.push_back ~out (cpp/cast cpp/char (cpp/int ~b))))))
+
+(defnative append-chunk
+  "Appends a PNG chunk of type `kind` holding the std::string `data`."
+  [out kind data]
+  `(let [body# (cpp/std.string. ~kind)]
+     (.append body# ~data)
+     (append-u32 ~out (cpp/cast cpp/uint32_t (.size ~data)))
+     (.append ~out body#)
+     (append-u32 ~out (cpp/cast cpp/uint32_t
+                                (cpp/crc32 (cpp/uLong 0) (zbytes body#)
+                                           (cpp/cast cpp/uInt (.size body#)))))))
+
+(defnative to-png
+  "PNG encoding, as a std::string. `img` is a pointer."
+  [img]
+  `(let [width# (cpp/.-width ~img)
+         height# (cpp/.-height ~img)
+         row-bytes# (cpp/cast cpp/size_t (cpp/* width# 3))
+         header# (cpp/std.string.)
+         raw# (cpp/std.string.)]
+     (append-u32 header# (cpp/cast cpp/uint32_t width#))
+     (append-u32 header# (cpp/cast cpp/uint32_t height#))
+     ;; 8 bits per channel, RGB, deflate, no filtering, no interlacing.
+     (append-bytes header# 8 2 0 0 0)
+     ;; Each scanline starts with its filter type, 0 for none.
+     (loop [y# (cpp/int64_t 0)]
+       (when (cpp/< y# height#)
+         (.push_back raw# (cpp/char 0))
+         (.append raw# (cpp/.-pixels ~img) (cpp/* (cpp/cast cpp/size_t y#) row-bytes#) row-bytes#)
+         (recur (cpp/+ y# 1))))
+     (let [idat# (cpp/std.string. (cpp/compressBound (.size raw#)) (cpp/char 0))
+           size# (cpp/uLongf (.size idat#))
+           status# (cpp/compress2 (zbytes idat#) (cpp/& size#) (zbytes raw#) (.size raw#)
+                                  cpp/Z_BEST_COMPRESSION)
+           png# (cpp/std.string.)]
+       (when-not (cpp/== status# cpp/Z_OK)
+         (throw (ex-info "zlib failed" {:status status#})))
+       (.resize idat# size#)
+       (append-bytes png# 0x89 0x50 0x4e 0x47 0x0d 0x0a 0x1a 0x0a)
+       (append-chunk png# "IHDR" header#)
+       (append-chunk png# "IDAT" idat#)
+       (append-chunk png# "IEND" (cpp/std.string.))
+       png#)))
+
+(defn save-png [img path]
+  (let [png (to-png (unbox img))
+        f (cpp/std.ofstream. (cpp/cast cpp/std.string path) cpp/std.ios_base.binary)]
+    (.write f (.data png) (cpp/cast cpp/std.streamsize (.size png)))
+    (.close f)
+    (when (.fail f)
+      (throw (ex-info (str "can't write " path) {})))))

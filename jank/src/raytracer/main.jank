@@ -1,0 +1,62 @@
+(ns raytracer.main
+  (:include "raytracer/types.hpp" "cstdlib")
+  (:require [raytracer.camera :as camera]
+            [raytracer.image :as image]
+            [raytracer.material :as material]
+            [raytracer.render :as render]
+            [raytracer.rng :as rng]
+            [raytracer.sphere :as sphere]
+            [raytracer.vec3 :as v]
+            [raytracer.world :as world]))
+
+(def ^:private width 800)
+(def ^:private height 450)
+(def ^:private samples 100)
+
+(defn- log [& args] (binding [*out* *err*] (apply println args)))
+
+(defn- random-world []
+  (let [rng (rng/rng 1)
+        metal-center (v/vec3 4.0 0.2 0.0)]
+    (world/world
+     (concat
+      [(sphere/sphere [0.0 -1000.0 -1.0] 1000.0 (material/lambertian [0.5 0.5 0.5]))]
+      ;; A small sphere in each grid square, unless it would be too close to
+      ;; the metal sphere. The random numbers are drawn in order.
+      (loop [a -11, b -11, spheres []]
+        (cond
+          (= b 11) (recur (inc a) -11 spheres)
+          (= a 11) spheres
+          :else
+          (let [x (cpp/+ (cpp/cast cpp/double a) (cpp/* 0.9 (rng/next-f64 rng)))
+                z (cpp/+ (cpp/cast cpp/double b) (cpp/* 0.9 (rng/next-f64 rng)))
+                center (v/vec3 x 0.2 z)]
+            (recur a (inc b)
+                   (if (cpp/> (v/length (v/sub center metal-center)) 0.9)
+                     (let [r (cpp/* (rng/next-f64 rng) (rng/next-f64 rng))
+                           g (cpp/* (rng/next-f64 rng) (rng/next-f64 rng))
+                           b (cpp/* (rng/next-f64 rng) (rng/next-f64 rng))]
+                       (conj spheres (sphere/sphere [x 0.2 z] 0.2 (material/lambertian [r g b]))))
+                     spheres)))))
+      [(sphere/sphere [4.0 1.0 0.0] 1.0 (material/metal [0.8 0.6 0.2] 0.1))
+       (sphere/sphere [0.0 1.0 0.0] 1.0 (material/dielectric 1.5))
+       (sphere/sphere [-4.0 1.0 0.0] 1.0 (material/metal [0.8 0.8 0.8] 0.2))]))))
+
+(defn -main [& [output]]
+  (let [output (or output "out.png")
+        _ (log "Generating world")
+        world (random-world)
+        cam (camera/camera {:look-from [3.0 2.0 3.0]
+                            :look-at [0.0 0.0 -1.0]
+                            :v-up [0.0 1.0 0.0]
+                            :vfov 90.0
+                            :aspect (/ (double width) (double height))
+                            :aperture 0.01})
+        _ (log "Rendering on" (render/threads) "threads")
+        img (render/render width height samples cam world)]
+    (try
+      (image/save-png img output)
+      (log "Wrote" output)
+      (catch cpp/jank.runtime.object_ref e
+        (log (str "Writing " output ": " (ex-message e)))
+        (cpp/std.exit 1)))))

@@ -1,0 +1,20 @@
+(ns raytracer.bench
+  "Mirrors BenchmarkRender in the Go version: the test scene at 100x100 with
+  50 samples per pixel. Usage: bench [iterations] [threads]"
+  (:require [raytracer.render :as render]
+            [raytracer.scene :as scene]))
+
+(defn -main [& args]
+  (let [[iterations threads] (map parse-long args)
+        iterations (or iterations 20)
+        threads (or threads (render/threads))
+        [width height] [100 100]
+        cam (scene/camera width height)
+        w (scene/world)
+        run #(render/render-with-threads threads width height 50 cam w)]
+    ;; One run first, so the timed runs start warm.
+    (run)
+    (let [start (cpp/jank.runtime.current_time)]
+      (dotimes [_ iterations] (run))
+      (println (format "{} iterations on {} threads: {:.2f} ms/op" iterations threads
+                       (/ (- (cpp/jank.runtime.current_time) start) 1e6 iterations))))))

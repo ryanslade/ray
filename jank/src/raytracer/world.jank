@@ -1,0 +1,35 @@
+(ns raytracer.world
+  (:include "raytracer/types.hpp")
+  (:require [raytracer.native :refer [defnative]]
+            [raytracer.ray :as ray]
+            [raytracer.sphere :as sphere]
+            [raytracer.vec3 :as v]))
+
+(defn world
+  "A world of sphere maps, as a boxed rt::world."
+  [spheres]
+  (let [w (cpp/new cpp/rt.world)]
+    (doseq [s spheres]
+      (.push_back (cpp/.-spheres w) (sphere/of s)))
+    (cpp/box w)))
+
+(defnative unbox [w] `(cpp/unbox (:* rt.world) ~w))
+
+(defnative hit
+  "The closest hit in (`t-min`, `t-max`), shrinking `t-max` as nearer spheres
+  are found, or none. `w` is a pointer to the world."
+  [w r t-min t-max]
+  `(let [spheres# (cpp/.-spheres ~w)
+         n# (.size spheres#)
+         a# (v/dot (ray/direction ~r) (ray/direction ~r))]
+     ;; Only the hit record for the closest sphere is ever needed, so just
+     ;; track which one it is until the end.
+     (loop [i# (cpp/size_t 0), closest# n#, t-max# ~t-max]
+       (if (cpp/< i# n#)
+         (let [t# (sphere/intersect (cpp/& (cpp/aget spheres# i#)) ~r a# ~t-min t-max#)
+               ;; NaN, for a miss, is the only value not equal to itself.
+               hit?# (cpp/== t# t#)]
+           (recur (cpp/+ i# 1) (if hit?# i# closest#) (if hit?# t# t-max#)))
+         (if (cpp/< closest# n#)
+           (cpp/rt.maybe_hit. (sphere/hit-at (cpp/& (cpp/aget spheres# closest#)) ~r t-max#))
+           (cpp/rt.maybe_hit.))))))

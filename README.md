@@ -1,6 +1,6 @@
 A simple ray tracer based on
 [Ray Tracing in One Weekend](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8),
-ported to sixteen languages and to the GPU.
+ported to seventeen languages and to the GPU.
 
 ![Sample](/go/sample/sample.png "Sample")
 
@@ -19,6 +19,7 @@ lines, comments, tests or benchmarks.
 | [Rust](rust)                  | Standard library only, no `unsafe`    |         5.4 s |           746 |
 | [Go](go)                      | The original                          |         7.9 s |           554 |
 | [Common Lisp](common-lisp)    | SBCL                                  |         8.0 s |           607 |
+| [jank](jank)                  | C++ interop, no allocation per ray    |         8.4 s |           618 |
 | [Kotlin](kotlin)              | JVM                                   |         8.9 s |           482 |
 | [Scala](scala)                | Scala 3 on the JVM                    |         9.1 s |           323 |
 | [Racket](racket)              | Racket CS, parallel futures           |        13.2 s |           522 |

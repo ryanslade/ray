@@ -1,0 +1,28 @@
+(ns raytracer.native
+  "Native C++ values can't yet be passed to or returned from jank functions
+  without boxing them, and boxing allocates. So the code on the hot path is
+  written as macros, which the compiler expands into a few functions whose
+  locals are all native.")
+
+(defmacro defnative
+  "Like defn, but defines a macro that expands to `template` (a syntax-quoted
+  form) with each parameter bound to its argument, so arguments and the
+  result can be native values. An argument that isn't a symbol is bound to a
+  local first, so that it is evaluated once; a symbol is used as is, so a
+  native struct passed by name is not copied."
+  [name & decl]
+  (let [[doc params template] (if (string? (first decl)) decl (cons nil decl))]
+    `(defmacro ~name ~@(when doc [doc]) ~params
+       (let [forms# ~params
+             ~params (map (fn [p# f#] (if (symbol? f#) f# (gensym (str p# "_"))))
+                          '~params forms#)
+             bindings# (mapcat (fn [p# f#] (when-not (symbol? f#) [p# f#]))
+                               ~params forms#)]
+         (if (seq bindings#)
+           (list 'let (vec bindings#) ~template)
+           ~template)))))
+
+(defnative ->double
+  "A jank number as a native double."
+  [x]
+  `(cpp/cast cpp/double (double ~x)))

@@ -1,0 +1,24 @@
+(ns raytracer.ray
+  "Rays, and where they hit things."
+  (:include "raytracer/types.hpp")
+  (:require [raytracer.native :refer [defnative]]
+            [raytracer.vec3 :as v]))
+
+(defnative ray [origin direction] `(cpp/rt.ray. ~origin ~direction))
+
+(defnative origin [r] `(cpp/.-origin ~r))
+(defnative direction [r] `(cpp/.-direction ~r))
+
+(defnative at [r t] `(v/add (origin ~r) (v/scale ~t (direction ~r))))
+
+(defnative hit
+  "A hit at `t`, on a surface made of `material`, a pointer."
+  [t point normal material]
+  `(cpp/rt.hit. ~t ~point ~normal ~material))
+
+(defnative ->map
+  "A hit as a jank map, for the tests."
+  [h]
+  `{:t (cpp/.-t ~h)
+    :point (v/->vector (cpp/.-point ~h))
+    :normal (v/->vector (cpp/.-normal ~h))})

@@ -1,0 +1,65 @@
+(ns raytracer.vec3
+  "Vectors of three doubles, also used for colours (as r, g and b). Each is a
+  native rt::vec3, so no operation allocates."
+  (:include "raytracer/types.hpp")
+  (:require [raytracer.native :refer [->double defnative]]
+            [raytracer.rng :as rng]))
+
+(defnative vec3 [x y z] `(cpp/rt.vec3. ~x ~y ~z))
+
+(defnative x [v] `(cpp/.-x ~v))
+(defnative y [v] `(cpp/.-y ~v))
+(defnative z [v] `(cpp/.-z ~v))
+
+(defnative zero [] `(vec3 0.0 0.0 0.0))
+(defnative black [] `(zero))
+(defnative white [] `(vec3 1.0 1.0 1.0))
+
+(defnative of
+  "A vec3 from a jank collection of three numbers."
+  [xs]
+  `(vec3 (->double (nth ~xs 0)) (->double (nth ~xs 1)) (->double (nth ~xs 2))))
+
+(defnative ->vector
+  "The vec3 as a jank vector of three doubles."
+  [v]
+  `[(x ~v) (y ~v) (z ~v)])
+
+(defnative add [a b] `(vec3 (cpp/+ (x ~a) (x ~b)) (cpp/+ (y ~a) (y ~b)) (cpp/+ (z ~a) (z ~b))))
+(defnative sub [a b] `(vec3 (cpp/- (x ~a) (x ~b)) (cpp/- (y ~a) (y ~b)) (cpp/- (z ~a) (z ~b))))
+(defnative mul [a b] `(vec3 (cpp/* (x ~a) (x ~b)) (cpp/* (y ~a) (y ~b)) (cpp/* (z ~a) (z ~b))))
+(defnative scale [s v] `(vec3 (cpp/* ~s (x ~v)) (cpp/* ~s (y ~v)) (cpp/* ~s (z ~v))))
+(defnative div [v s] `(vec3 (cpp// (x ~v) ~s) (cpp// (y ~v) ~s) (cpp// (z ~v) ~s)))
+(defnative neg [v] `(vec3 (cpp/- (x ~v)) (cpp/- (y ~v)) (cpp/- (z ~v))))
+
+(defnative dot [a b]
+  `(cpp/+ (cpp/+ (cpp/* (x ~a) (x ~b)) (cpp/* (y ~a) (y ~b))) (cpp/* (z ~a) (z ~b))))
+
+(defnative cross [a b]
+  `(vec3 (cpp/- (cpp/* (y ~a) (z ~b)) (cpp/* (z ~a) (y ~b)))
+         (cpp/- (cpp/* (z ~a) (x ~b)) (cpp/* (x ~a) (z ~b)))
+         (cpp/- (cpp/* (x ~a) (y ~b)) (cpp/* (y ~a) (x ~b)))))
+
+(defnative length [v] `(cpp/sqrt (dot ~v ~v)))
+
+(defnative unit [v] `(div ~v (length ~v)))
+
+(defnative coordinate [rng]
+  `(cpp/- (cpp/* 2.0 (rng/next-f64 ~rng)) 1.0))
+
+(defnative random-in-unit-sphere
+  "Rejection sampling: pick points in the enclosing cube until one lands
+  inside."
+  [rng]
+  `(loop []
+     (let [x# (coordinate ~rng), y# (coordinate ~rng), z# (coordinate ~rng)]
+       (if (cpp/< (cpp/+ (cpp/+ (cpp/* x# x#) (cpp/* y# y#)) (cpp/* z# z#)) 1.0)
+         (vec3 x# y# z#)
+         (recur)))))
+
+(defnative random-in-unit-disk [rng]
+  `(loop []
+     (let [x# (coordinate ~rng), y# (coordinate ~rng)]
+       (if (cpp/< (cpp/+ (cpp/* x# x#) (cpp/* y# y#)) 1.0)
+         (vec3 x# y# 0.0)
+         (recur)))))

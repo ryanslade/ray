@@ -1,0 +1,49 @@
+(ns raytracer.sphere
+  "Spheres are jank maps until the world is built, and rt::sphere after."
+  (:include "raytracer/types.hpp")
+  (:require [raytracer.material :as material]
+            [raytracer.native :refer [->double defnative]]
+            [raytracer.ray :as ray]
+            [raytracer.vec3 :as v]))
+
+(defn sphere [center radius material] {:center center :radius radius :material material})
+
+(defnative of
+  "The rt::sphere for a sphere map."
+  [s]
+  `(cpp/rt.sphere. (v/of (:center ~s)) (->double (:radius ~s)) (material/of (:material ~s))))
+
+(defnative hit-at
+  "The hit record for the ray `r` meeting the sphere `s`, a pointer, at `t`."
+  [s r t]
+  `(let [point# (ray/at ~r ~t)]
+     (ray/hit ~t point# (v/div (v/sub point# (cpp/.-center ~s)) (cpp/.-radius ~s))
+              (cpp/& (cpp/.-material ~s)))))
+
+(defnative intersect
+  "The nearest t in (`t-min`, `t-max`) at which the ray `r` meets the sphere
+  `s`, a pointer, or NaN if there is none. `a` is the ray direction's squared
+  length, which is the same for every sphere."
+  [s r a t-min t-max]
+  `(let [oc# (v/sub (ray/origin ~r) (cpp/.-center ~s))
+         b# (v/dot oc# (ray/direction ~r))
+         c# (cpp/- (v/dot oc# oc#) (cpp/* (cpp/.-radius ~s) (cpp/.-radius ~s)))
+         discriminant# (cpp/- (cpp/* b# b#) (cpp/* ~a c#))]
+     (if (cpp/< discriminant# 0.0)
+       ##NaN
+       (let [sqrt-d# (cpp/sqrt discriminant#)
+             near# (cpp// (cpp/- (cpp/- b#) sqrt-d#) ~a)]
+         (if (cpp/&& (cpp/< near# ~t-max) (cpp/> near# ~t-min))
+           near#
+           (let [far# (cpp// (cpp/+ (cpp/- b#) sqrt-d#) ~a)]
+             (if (cpp/&& (cpp/< far# ~t-max) (cpp/> far# ~t-min))
+               far#
+               ##NaN)))))))
+
+(defnative hit
+  "The hit record for the nearest point in (`t-min`, `t-max`) at which the ray
+  meets the sphere `s`, a pointer, or none."
+  [s r t-min t-max]
+  `(let [t# (intersect ~s ~r (v/dot (ray/direction ~r) (ray/direction ~r)) ~t-min ~t-max)]
+     ;; NaN is the only value not equal to itself.
+     (if (cpp/!= t# t#) (cpp/rt.maybe_hit.) (cpp/rt.maybe_hit. (hit-at ~s ~r t#)))))

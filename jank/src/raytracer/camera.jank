@@ -1,0 +1,45 @@
+(ns raytracer.camera
+  (:include "raytracer/types.hpp")
+  (:require [raytracer.native :refer [->double defnative]]
+            [raytracer.ray :as ray]
+            [raytracer.vec3 :as v]))
+
+(defn camera
+  "A camera at `look-from` facing `look-at`, both [x y z]. `vfov` is the
+  vertical field of view in degrees. The camera is boxed, so it can be passed
+  around in jank. It is focused on `look-at`."
+  [{:keys [look-from look-at v-up vfov aspect aperture]}]
+  (let [look-from (v/of look-from)
+        look-at (v/of look-at)
+        focus-dist (v/length (v/sub look-from look-at))
+        half-height (cpp/tan (cpp// (cpp/* (->double vfov) 0.017453292519943295)
+                                    2.0))
+        half-width (cpp/* (->double aspect) half-height)
+        w (v/unit (v/sub look-from look-at))
+        u (v/unit (v/cross (v/of v-up) w))
+        v (v/cross w u)]
+    (cpp/box (cpp/new cpp/rt.camera
+                      look-from
+                      (-> look-from
+                          (v/sub (v/scale (cpp/* half-width focus-dist) u))
+                          (v/sub (v/scale (cpp/* half-height focus-dist) v))
+                          (v/sub (v/scale focus-dist w)))
+                      (v/scale (cpp/* (cpp/* 2.0 half-width) focus-dist) u)
+                      (v/scale (cpp/* (cpp/* 2.0 half-height) focus-dist) v)
+                      u v (cpp// (->double aperture) 2.0)))))
+
+(defnative unbox [c] `(cpp/unbox (:* rt.camera) ~c))
+
+(defnative get-ray
+  "A ray through the viewport at normalised coordinates (`s`, `t`), with its
+  origin jittered across the lens. `c` is a pointer to the camera."
+  [c s t rng]
+  `(let [rd# (v/scale (cpp/.-lens_radius ~c) (v/random-in-unit-disk ~rng))
+         offset# (v/add (v/scale (v/x rd#) (cpp/.-u ~c)) (v/scale (v/y rd#) (cpp/.-v ~c)))
+         origin# (cpp/.-origin ~c)]
+     (ray/ray (v/add origin# offset#)
+              (-> (cpp/.-lower_left ~c)
+                  (v/add (v/scale ~s (cpp/.-horizontal ~c)))
+                  (v/add (v/scale ~t (cpp/.-vertical ~c)))
+                  (v/sub origin#)
+                  (v/sub offset#)))))

@@ -1,0 +1,10 @@
+(ns raytracer.test-main
+  "Runs the tests, exiting with a failure status if any fail."
+  (:include "cstdlib")
+  (:require [clojure.test :as t]
+            [raytracer.render-test]
+            [raytracer.unit-test]))
+
+(defn -main [& _]
+  (when-not (t/successful? (t/run-tests 'raytracer.unit-test 'raytracer.render-test))
+    (cpp/std.exit 1)))

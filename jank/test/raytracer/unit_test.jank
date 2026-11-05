@@ -1,0 +1,131 @@
+(ns raytracer.unit-test
+  (:include "raytracer/types.hpp" "zlib.h")
+  (:require [clojure.test :refer [is testing]]
+            [raytracer.image :as image]
+            [raytracer.material :as material]
+            [raytracer.ray :as ray]
+            [raytracer.rng :as rng]
+            [raytracer.sphere :as sphere]
+            [raytracer.test :refer [deftest]]
+            [raytracer.vec3 :as v]
+            [raytracer.world :as world]))
+
+(defn- close? [a b]
+  (< (reduce + (map #(abs (- %1 %2)) a b)) 1e-9))
+
+(deftest vec3-arithmetic
+  (let [a (v/vec3 1.0 2.0 3.0)
+        b (v/vec3 4.0 5.0 6.0)]
+    (is (close? [5.0 7.0 9.0] (v/->vector (v/add a b))))
+    (is (close? [2.0 4.0 6.0] (v/->vector (v/scale 2.0 a))))
+    (is (== 32.0 (v/dot a b)))
+    (is (close? [-3.0 6.0 -3.0] (v/->vector (v/cross a b))))
+    (is (< (abs (- (v/length (v/unit b)) 1.0)) 1e-9))))
+
+(deftest rng-floats-in-unit-interval
+  (let [r (rng/rng 1)]
+    (is (loop [i 0]
+          (or (= i 10000)
+              (let [f (rng/next-f64 r)]
+                (and (cpp/>= f 0.0) (cpp/< f 1.0) (recur (inc i)))))))))
+
+(deftest rng-same-seed-same-sequence
+  (let [a (rng/rng 42)
+        b (rng/rng 42)]
+    (is (loop [i 0]
+          (or (= i 100)
+              (and (cpp/== (rng/next-u64 a) (rng/next-u64 b)) (recur (inc i))))))))
+
+(deftest sphere-hit
+  (let [s (sphere/of (sphere/sphere [0.0 0.0 -1.0] 0.5 (material/dielectric 1.5)))
+        towards (ray/ray (v/zero) (v/vec3 0.0 0.0 -1.0))
+        h (sphere/hit (cpp/& s) towards 0.0 ##Inf)]
+    (is (.has_value h))
+    (is (= {:t 0.5 :point [0.0 0.0 -0.5] :normal [0.0 0.0 1.0]} (ray/->map (cpp/* h))))
+    (is (cpp/== (cpp/& (cpp/.-material s)) (cpp/.-material (cpp/* h))))
+    (testing "far side"
+      (is (== 1.5 (cpp/.-t (cpp/* (sphere/hit (cpp/& s) towards 0.6 ##Inf))))))
+    (is (not (.has_value (sphere/hit (cpp/& s) (ray/ray (v/zero) (v/vec3 0.0 1.0 0.0))
+                                     0.0 ##Inf))))))
+
+(deftest world-closest-hit
+  (let [m (material/dielectric 1.5)
+        w (world/unbox (world/world [(sphere/sphere [0.0 0.0 -5.0] 1.0 m)
+                                     (sphere/sphere [0.0 0.0 -2.0] 0.5 m)]))
+        h (world/hit w (ray/ray (v/zero) (v/vec3 0.0 0.0 -1.0)) 0.0 ##Inf)]
+    (is (== 1.5 (cpp/.-t (cpp/* h))))
+    (is (not (.has_value (world/hit w (ray/ray (v/zero) (v/vec3 0.0 1.0 0.0)) 0.0 ##Inf))))))
+
+(deftest total-internal-reflection
+  (is (not (.has_value (material/refract (v/vec3 1.0 -0.1 0.0) (v/vec3 0.0 1.0 0.0) 1.5)))))
+
+(deftest refracts-head-on
+  (let [down (v/vec3 0.0 -1.0 0.0)]
+    (is (close? [0.0 -1.0 0.0]
+                (v/->vector (cpp/* (material/refract down (v/vec3 0.0 1.0 0.0)
+                                                     (cpp/double 0.6666666666666666))))))))
+
+(deftest metal-fuzz-is-clamped
+  (is (== 1.0 (:fuzz (material/metal [1.0 1.0 1.0] 2.0))))
+  (is (== 0.0 (:fuzz (material/metal [1.0 1.0 1.0] -1.0)))))
+
+(deftest image-set-clamps
+  (let [img (image/image 3 1)]
+    (image/set-color! img 1 0 [2.0 0.5 -1.0])
+    ;; f64::min in Rust ignores NaN, so NaN becomes 255.
+    (image/set-color! img 2 0 [##NaN 0.0 0.0])
+    (is (= [0 0 0] (image/pixel img 0 0)))
+    (is (= [255 127 0] (image/pixel img 1 0)))
+    (is (= [255 0 0] (image/pixel img 2 0)))
+    (is (thrown? (image/pixel img 3 0)))))
+
+(deftest ppm-header
+  (let [ppm (image/to-ppm (image/image 3 2))]
+    (is (= "P6\n3 2\n255\n" (subs ppm 0 11)))
+    (is (= (+ 11 (* 3 2 3)) (count ppm)))))
+
+(defmacro ^:private byte-at
+  "The byte at `i` in the std::string `s`."
+  [s i]
+  `(cpp/cast cpp/int64_t (cpp/cast cpp/uint8_t (cpp/aget ~s (cpp/cast cpp/size_t ~i)))))
+
+(defmacro ^:private u32-at
+  "The big-endian 32-bit integer at `i` in the std::string `s`."
+  [s i]
+  `(+ (* 16777216 (byte-at ~s ~i)) (* 65536 (byte-at ~s (+ ~i 1)))
+      (* 256 (byte-at ~s (+ ~i 2))) (byte-at ~s (+ ~i 3))))
+
+(defmacro ^:private crc
+  "The CRC-32 of the std::string `s`."
+  [s]
+  `(cpp/cast cpp/int64_t (cpp/crc32 (cpp/uLong 0) (image/zbytes ~s) (cpp/cast cpp/uInt (.size ~s)))))
+
+(deftest png-chunks
+  (let [img (image/image 4 3)]
+    (doseq [y (range 3), x (range 4)]
+      (image/set-color! img x y [(/ x 4.0) (/ y 3.0) (/ (mod (+ x y) 7) 7.0)]))
+    (let [png (image/to-png (image/unbox img))
+          size (cpp/cast cpp/int64_t (.size png))]
+      (is (= [0x89 0x50 0x4e 0x47 0x0d 0x0a 0x1a 0x0a]
+             (loop [i 0, bytes []] (if (< i 8) (recur (inc i) (conj bytes (byte-at png i))) bytes))))
+      ;; Each chunk is its length, type, data and CRC.
+      (is (= ["IHDR" "IDAT" "IEND"]
+             (loop [i 8, kinds []]
+               (if (< i size)
+                 (let [n (u32-at png i)
+                       body (.substr png (cpp/cast cpp/size_t (+ i 4)) (cpp/cast cpp/size_t (+ n 4)))]
+                   (is (= (u32-at png (+ i 8 n)) (crc body)))
+                   (recur (+ i 12 n) (conj kinds (.substr body 0 4))))
+                 kinds))))
+      ;; The IDAT chunk follows IHDR's 25 bytes. PNG is lossless, so every
+      ;; pixel comes back unchanged.
+      (let [idat (.substr png (cpp/size_t 41) (cpp/cast cpp/size_t (u32-at png 33)))
+            raw (cpp/std.string. (cpp/size_t 100) (cpp/char 0))
+            raw-size (cpp/uLongf (.size raw))]
+        (is (= cpp/Z_OK (cpp/uncompress (image/zbytes raw) (cpp/& raw-size) (image/zbytes idat)
+                                        (.size idat))))
+        (is (= (* 3 (+ 1 (* 4 3))) raw-size))
+        (doseq [y (range 3), x (range 4)
+                :let [i (+ (* y 13) 1 (* x 3))]]
+          (is (= (image/pixel img x y)
+                 [(byte-at raw i) (byte-at raw (+ i 1)) (byte-at raw (+ i 2))])))))))

@@ -1,0 +1,92 @@
+(ns raytracer.material
+  "Materials are jank maps until the world is built, and rt::material after."
+  (:include "raytracer/types.hpp")
+  (:require [raytracer.native :refer [->double defnative]]
+            [raytracer.ray :as ray]
+            [raytracer.rng :as rng]
+            [raytracer.vec3 :as v]))
+
+(defn lambertian [albedo] {:surface :lambertian :albedo albedo})
+
+(defn metal
+  "`fuzz` is clamped to [0, 1]: 0 is a perfect mirror."
+  [albedo fuzz]
+  {:surface :metal :albedo albedo :fuzz (max 0.0 (min fuzz 1.0))})
+
+;; Glass absorbs nothing, so its albedo is white.
+(defn dielectric [ref-index]
+  {:surface :dielectric :albedo [1.0 1.0 1.0] :ref-index ref-index})
+
+(defnative of
+  "The rt::material for a material map."
+  [m]
+  `(cpp/rt.material. (let [s# (:surface ~m)]
+                       (if (= s# :lambertian)
+                         cpp/rt.surface.lambertian
+                         (if (= s# :metal) cpp/rt.surface.metal cpp/rt.surface.dielectric)))
+                     (v/of (:albedo ~m))
+                     (->double (:fuzz ~m 0.0))
+                     (->double (:ref-index ~m 0.0))))
+
+(defnative reflect [v n]
+  `(v/sub ~v (v/scale (cpp/* 2.0 (v/dot ~v ~n)) ~n)))
+
+(defnative refract
+  "The refracted ray's direction, or none on total internal reflection."
+  [v n ni-over-nt]
+  `(let [uv# (v/unit ~v)
+         dt# (v/dot uv# ~n)
+         discriminant# (cpp/- 1.0
+                              (cpp/* (cpp/* ~ni-over-nt ~ni-over-nt)
+                                     (cpp/- 1.0 (cpp/* dt# dt#))))]
+     (if (cpp/> discriminant# 0.0)
+       (cpp/rt.maybe_vec3. (v/sub (v/scale ~ni-over-nt (v/sub uv# (v/scale dt# ~n)))
+                                  (v/scale (cpp/sqrt discriminant#) ~n)))
+       (cpp/rt.maybe_vec3.))))
+
+(defnative schlick
+  "Schlick's approximation for reflectance at a given angle."
+  [cosine ref-index]
+  `(let [r0# (cpp// (cpp/- 1.0 ~ref-index) (cpp/+ 1.0 ~ref-index))
+         r0# (cpp/* r0# r0#)
+         ;; Multiplied out rather than using pow, to match the other versions'
+         ;; golden image.
+         x# (cpp/- 1.0 ~cosine)
+         x2# (cpp/* x# x#)]
+     (cpp/+ r0# (cpp/* (cpp/* (cpp/* (cpp/- 1.0 r0#) x2#) x2#) x#))))
+
+(defnative scatter
+  "The scattered ray, or none if the ray is absorbed. `m` is a pointer to the
+  material, and `h` the hit."
+  [m ray-in h rng]
+  `(let [surface# (cpp/.-surface ~m)
+         d# (ray/direction ~ray-in)
+         p# (cpp/.-point ~h)
+         normal# (cpp/.-normal ~h)]
+     ;; Not cond, whose last branch would be nil, which isn't a ray.
+     (if (cpp/== surface# cpp/rt.surface.lambertian)
+       (let [target# (-> p# (v/add normal#) (v/add (v/random-in-unit-sphere ~rng)))]
+         (cpp/rt.maybe_ray. (ray/ray p# (v/sub target# p#))))
+       (if (cpp/== surface# cpp/rt.surface.metal)
+         (let [direction# (-> (v/unit d#) (reflect normal#)
+                              (v/add (v/scale (cpp/.-fuzz ~m) (v/random-in-unit-sphere ~rng))))]
+           (if (cpp/> (v/dot direction# normal#) 0.0)
+             (cpp/rt.maybe_ray. (ray/ray p# direction#))
+             (cpp/rt.maybe_ray.)))
+         (let [ref-index# (cpp/.-ref_index ~m)
+               d-dot-n# (v/dot d# normal#)
+               outside?# (cpp/> d-dot-n# 0.0)
+               refracted# (if outside?#
+                            (refract d# (v/neg normal#) ref-index#)
+                            (refract d# normal# (cpp// 1.0 ref-index#)))
+               cosine# (cpp// (if outside?# (cpp/* ref-index# d-dot-n#) (cpp/- d-dot-n#))
+                              (v/length d#))
+               reflected# (reflect d# normal#)]
+           (cpp/rt.maybe_ray.
+            (ray/ray p#
+                     ;; Only draws a random number when the ray can refract.
+                     (if (.has_value refracted#)
+                       (if (cpp/>= (rng/next-f64 ~rng) (schlick cosine# ref-index#))
+                         (cpp/* refracted#)
+                         reflected#)
+                       reflected#))))))))

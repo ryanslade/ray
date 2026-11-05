@@ -48,3 +48,6 @@ csharp/test/Raytracer.Tests/golden.actual.ppm
 fsharp/artifacts/
 fsharp/out.png
 fsharp/test/Raytracer.Tests/golden.actual.ppm
+jank/target/
+jank/out.png
+jank/test/golden.actual.ppm

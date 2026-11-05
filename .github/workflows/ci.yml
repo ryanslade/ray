@@ -342,6 +342,24 @@ jobs:
       # Checks the benchmark builds and runs (one iteration on one thread).
       - run: make bench ARGS="1 1"
 
+  jank:
+    # jank's release is built for arm64 macOS.
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: jank
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install jank
+        run: |
+          brew tap jank-lang/jank
+          brew trust --formula jank-lang/jank/jank
+          brew install jank-lang/jank/jank
+      - run: make test
+      - run: make build
+      # Checks the benchmark builds and runs (one iteration on one thread).
+      - run: make bench ARGS="1 1"
+
   metal:
     runs-on: macos-15
     defaults:

@@ -1,0 +1,90 @@
+(ns raytracer.render
+  (:include "raytracer/types.hpp" "cfloat" "thread")
+  (:require [raytracer.camera :as camera]
+            [raytracer.image :as image]
+            [raytracer.material :as material]
+            [raytracer.native :refer [defnative]]
+            [raytracer.ray :as ray]
+            [raytracer.rng :as rng]
+            [raytracer.vec3 :as v]
+            [raytracer.world :as world]))
+
+(def ^:private max-depth 50)
+
+(defnative sky [r]
+  `(let [t# (cpp/* 0.5
+                   (cpp/+ (v/y (v/unit (ray/direction ~r))) 1.0))]
+     (v/add (v/scale (cpp/- 1.0 t#) (v/white))
+            (v/scale t# (v/vec3 0.5 0.7 1.0)))))
+
+(defnative ray-color
+  "The colour seen along a ray, following up to 50 bounces. `w` is a pointer
+  to the world."
+  [w r rng]
+  ;; `attenuation` is the product of the attenuations of every surface hit so
+  ;; far.
+  `(loop [r# ~r, attenuation# (v/white), depth# (cpp/int 0)]
+     (let [h# (world/hit ~w r# 0.001 cpp/DBL_MAX)]
+       (if (.has_value h#)
+         (let [m# (cpp/.-material (cpp/* h#))
+               scattered# (if (cpp/< depth# (cpp/int ~max-depth))
+                            (material/scatter m# r# (cpp/* h#) ~rng)
+                            (cpp/rt.maybe_ray.))]
+           (if (.has_value scattered#)
+             (recur (cpp/* scattered#) (v/mul attenuation# (cpp/.-albedo m#))
+                    (cpp/+ depth# 1))
+             (v/black)))
+         (v/mul attenuation# (sky r#))))))
+
+(defn- render-row [img y samples camera world]
+  (let [img (image/unbox img)
+        camera (camera/unbox camera)
+        world (world/unbox world)
+        width (cpp/.-width img)
+        height (cpp/.-height img)
+        y (cpp/cast cpp/int64_t y)
+        samples (cpp/cast cpp/int64_t samples)
+        rng (rng/rng (cpp/+ y 1))]
+    (loop [x (cpp/int64_t 0)]
+      (when (cpp/< x width)
+        (loop [s (cpp/int64_t 0), c (v/black)]
+          (if (cpp/< s samples)
+            (let [u (cpp// (cpp/+ (cpp/cast cpp/double x) (rng/next-f64 rng))
+                           (cpp/cast cpp/double width))
+                  v (cpp// (cpp/+ (cpp/cast cpp/double (cpp/- (cpp/- height 1) y))
+                                  (rng/next-f64 rng))
+                           (cpp/cast cpp/double height))]
+              (recur (cpp/+ s 1)
+                     (v/add c (ray-color world (camera/get-ray camera u v rng) rng))))
+            (image/set-pixel! img x y (v/div c (cpp/cast cpp/double samples)))))
+        (recur (cpp/+ x 1))))))
+
+(defn render-with-threads
+  "Renders the world with `samples` rays per pixel on `threads` threads.
+
+  Each row uses its own random state seeded from the row index, so the image
+  is identical regardless of the number of threads."
+  [threads width height samples camera world]
+  (assert (pos? threads) "threads must be positive")
+  (let [img (image/image width height)
+        next-row (atom -1)
+        ;; Rows vary a lot in cost (sky is cheap, spheres are expensive), so
+        ;; threads take rows one at a time rather than a fixed block each.
+        worker #(loop []
+                  (let [y (swap! next-row inc)]
+                    (when (< y height)
+                      (render-row img y samples camera world)
+                      (recur))))
+        others (doall (repeatedly (dec threads) #(future (worker))))]
+    (worker)
+    ;; Waits for the other threads, rethrowing anything they threw.
+    (run! deref others)
+    img))
+
+(defn threads [] (cpp/cast cpp/int64_t (cpp/std.thread.hardware_concurrency)))
+
+(defn render
+  "Renders the world with `samples` rays per pixel, in parallel across all
+  available cores."
+  [width height samples camera world]
+  (render-with-threads (threads) width height samples camera world))

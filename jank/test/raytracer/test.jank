@@ -1,0 +1,9 @@
+(ns raytracer.test)
+
+(defmacro deftest
+  "clojure.test/deftest, working around a jank 0.1 bug: compiled ahead of
+  time, the :test metadata deftest gives the var is left as an unevaluated
+  (fn ...) form, so run-tests fails calling it."
+  [name & body]
+  `(do (defn ~name [] ~@body)
+       (alter-meta! (var ~name) assoc :test ~name)))

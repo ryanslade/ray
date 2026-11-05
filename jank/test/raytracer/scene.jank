@@ -1,0 +1,20 @@
+(ns raytracer.scene
+  "The scene used by the tests and benchmark, matching the other versions."
+  (:require [raytracer.camera :as camera]
+            [raytracer.material :as material]
+            [raytracer.sphere :as sphere]
+            [raytracer.world :as world]))
+
+(defn world []
+  (world/world
+   [(sphere/sphere [0.0 -100.5 -1.0] 100.0 (material/lambertian [0.5 0.5 0.5]))
+    (sphere/sphere [0.0 0.0 -1.0] 1.0 (material/metal [0.8 0.8 0.8] 0.2))
+    (sphere/sphere [1.5 0.0 -1.0] 1.0 (material/dielectric 1.5))]))
+
+(defn camera [width height]
+  (camera/camera {:look-from [1.0 1.0 1.0]
+                  :look-at [0.0 0.0 -1.0]
+                  :v-up [0.0 1.0 0.0]
+                  :vfov 90.0
+                  :aspect (/ (double width) (double height))
+                  :aperture 0.01}))
